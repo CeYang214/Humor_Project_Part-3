@@ -18,6 +18,13 @@ import { requireSuperadminOrMatrixAdmin } from '@/lib/supabase/admin'
 
 type ActionStatus = 'success' | 'error'
 
+function isRedirectException(error: unknown) {
+  if (!error || typeof error !== 'object') return false
+  if (!('digest' in error)) return false
+  const digest = (error as { digest?: unknown }).digest
+  return typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT')
+}
+
 function normalizeText(value: FormDataEntryValue | null) {
   if (typeof value !== 'string') return ''
   return value.trim()
@@ -103,6 +110,7 @@ export async function createHumorFlavorAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getMessagePath('success', 'Humor flavor created.', flavorId))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to create humor flavor.'
     redirect(getMessagePath('error', message))
   }
@@ -132,6 +140,7 @@ export async function updateHumorFlavorAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getMessagePath('success', 'Humor flavor updated.', flavorId))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to update humor flavor.'
     redirect(getMessagePath('error', message, flavorId))
   }
@@ -159,6 +168,7 @@ export async function deleteHumorFlavorAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getMessagePath('success', 'Humor flavor deleted.'))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to delete humor flavor.'
     redirect(getMessagePath('error', message, flavorId))
   }
@@ -240,6 +250,7 @@ export async function createHumorFlavorStepAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getMessagePath('success', 'Humor flavor step created.', flavorId))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to create humor flavor step.'
     redirect(getMessagePath('error', message, flavorId))
   }
@@ -270,6 +281,7 @@ export async function updateHumorFlavorStepAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getMessagePath('success', 'Humor flavor step updated.', flavorId))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to update humor flavor step.'
     redirect(getMessagePath('error', message, flavorId))
   }
@@ -299,6 +311,7 @@ export async function deleteHumorFlavorStepAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getMessagePath('success', 'Humor flavor step deleted.', flavorId))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to delete humor flavor step.'
     redirect(getMessagePath('error', message, flavorId))
   }
@@ -387,6 +400,7 @@ export async function moveHumorFlavorStepAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getMessagePath('success', 'Step order updated.', flavorId))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to reorder flavor steps.'
     redirect(getMessagePath('error', message, flavorId))
   }

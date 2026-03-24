@@ -17,6 +17,13 @@ type ActionStatus = 'success' | 'error'
 type AdminRedirectTarget = '/admin/operations'
 type JsonObject = Record<string, unknown>
 
+function isRedirectException(error: unknown) {
+  if (!error || typeof error !== 'object') return false
+  if (!('digest' in error)) return false
+  const digest = (error as { digest?: unknown }).digest
+  return typeof digest === 'string' && digest.startsWith('NEXT_REDIRECT')
+}
+
 function normalizeText(value: FormDataEntryValue | null) {
   if (typeof value !== 'string') return ''
   return value.trim()
@@ -113,6 +120,7 @@ export async function createEntityAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getEntityMessagePath(redirectTarget, 'success', `${entity.label}: row created.`, entityKey))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Create operation failed.'
     redirect(getEntityMessagePath(redirectTarget, 'error', message, entityKey))
   }
@@ -148,6 +156,7 @@ export async function updateEntityAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getEntityMessagePath(redirectTarget, 'success', `${entity.label}: row updated.`, entityKey))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Update operation failed.'
     redirect(getEntityMessagePath(redirectTarget, 'error', message, entityKey))
   }
@@ -182,6 +191,7 @@ export async function deleteEntityAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getEntityMessagePath(redirectTarget, 'success', `${entity.label}: row deleted.`, entityKey))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Delete operation failed.'
     redirect(getEntityMessagePath(redirectTarget, 'error', message, entityKey))
   }
@@ -251,6 +261,7 @@ export async function uploadImageAction(formData: FormData) {
     revalidateAdminRoutes()
     redirect(getOperationsMessagePath('success', `Image uploaded to ${bucket}/${objectPath}`, entityKey))
   } catch (error) {
+    if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Image upload failed.'
     redirect(getOperationsMessagePath('error', message, entityKey))
   }
