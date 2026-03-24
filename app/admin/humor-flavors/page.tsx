@@ -16,9 +16,14 @@ import {
   FLAVOR_NAME_COLUMN_CANDIDATES,
   HUMOR_FLAVOR_STEP_TABLE_CANDIDATES,
   HUMOR_FLAVOR_TABLE_CANDIDATES,
+  STEP_INPUT_TYPE_COLUMN_CANDIDATES,
+  STEP_MODEL_COLUMN_CANDIDATES,
+  STEP_OUTPUT_TYPE_COLUMN_CANDIDATES,
   STEP_FLAVOR_COLUMN_CANDIDATES,
   STEP_ORDER_COLUMN_CANDIDATES,
   STEP_PROMPT_COLUMN_CANDIDATES,
+  STEP_TEMPERATURE_COLUMN_CANDIDATES,
+  STEP_TYPE_COLUMN_CANDIDATES,
   asCleanString,
   pickFirstExistingColumn,
   pickFlavorDescription,
@@ -167,6 +172,11 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
     stepFlavorColumn,
     stepOrderColumn,
     stepPromptColumn,
+    stepModelColumn,
+    stepInputTypeColumn,
+    stepOutputTypeColumn,
+    stepTypeColumn,
+    stepTemperatureColumn,
     flavorNameColumn,
     flavorDescriptionColumn,
   ] = await Promise.all([
@@ -187,6 +197,36 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
       if (fromRows) return fromRows
       if (!stepTableResolution.tableName) return null
       return await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_PROMPT_COLUMN_CANDIDATES)
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_MODEL_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return null
+      return await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_MODEL_COLUMN_CANDIDATES)
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_INPUT_TYPE_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return null
+      return await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_INPUT_TYPE_COLUMN_CANDIDATES)
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_OUTPUT_TYPE_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return null
+      return await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_OUTPUT_TYPE_COLUMN_CANDIDATES)
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_TYPE_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return null
+      return await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_TYPE_COLUMN_CANDIDATES)
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_TEMPERATURE_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return null
+      return await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_TEMPERATURE_COLUMN_CANDIDATES)
     })(),
     (async () => {
       const fromRows = pickFirstExistingColumn(flavorRows, FLAVOR_NAME_COLUMN_CANDIDATES)
@@ -224,6 +264,8 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
     return Math.max(acc, value)
   }, 0)
 
+  const templateStepForDefaults = selectedFlavorSteps[0] ?? stepRows[0] ?? null
+
   const defaultFlavorPayload = stringifyJson({
     [flavorNameColumn]: 'Sarcastic Dry Humor',
     [flavorDescriptionColumn]: 'Step-based prompt chain for short, sharp captions.',
@@ -235,6 +277,21 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
   }
   if (stepPromptColumn) {
     defaultStepPayloadObject[stepPromptColumn] = 'Describe the image in neutral language before adding humor.'
+  }
+  if (stepModelColumn && templateStepForDefaults?.[stepModelColumn] !== undefined) {
+    defaultStepPayloadObject[stepModelColumn] = templateStepForDefaults[stepModelColumn]
+  }
+  if (stepInputTypeColumn && templateStepForDefaults?.[stepInputTypeColumn] !== undefined) {
+    defaultStepPayloadObject[stepInputTypeColumn] = templateStepForDefaults[stepInputTypeColumn]
+  }
+  if (stepOutputTypeColumn && templateStepForDefaults?.[stepOutputTypeColumn] !== undefined) {
+    defaultStepPayloadObject[stepOutputTypeColumn] = templateStepForDefaults[stepOutputTypeColumn]
+  }
+  if (stepTypeColumn && templateStepForDefaults?.[stepTypeColumn] !== undefined) {
+    defaultStepPayloadObject[stepTypeColumn] = templateStepForDefaults[stepTypeColumn]
+  }
+  if (stepTemperatureColumn && templateStepForDefaults?.[stepTemperatureColumn] !== undefined) {
+    defaultStepPayloadObject[stepTemperatureColumn] = templateStepForDefaults[stepTemperatureColumn]
   }
   const defaultStepPayload = stringifyJson(defaultStepPayloadObject)
 
@@ -394,6 +451,9 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               Step table: {stepTableResolution.tableName ?? HUMOR_FLAVOR_STEP_TABLE_CANDIDATES[0]} | id column: {stepIdColumn} |
               flavor column: {stepFlavorColumn} | order column: {stepOrderColumn} | step text column: {stepPromptColumn ?? 'not detected'}
             </p>
+            <p className="mt-1 text-xs text-slate-400">
+              LLM columns: model={stepModelColumn ?? 'n/a'} | input={stepInputTypeColumn ?? 'n/a'} | output={stepOutputTypeColumn ?? 'n/a'} | stepType={stepTypeColumn ?? 'n/a'} | temp={stepTemperatureColumn ?? 'n/a'}
+            </p>
 
             <form action={createHumorFlavorStepAction} className="mt-4 grid gap-2">
               <input type="hidden" name="flavor_id" value={selectedFlavorId} />
@@ -536,55 +596,6 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
       </section>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
-        <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Flavor Directory</p>
-        <h3 className="mt-1 text-xl font-semibold">Pick Flavor To Manage</h3>
-        <p className="mt-1 text-sm text-slate-300">Newest flavors are listed first.</p>
-
-        <div className="mt-4 space-y-2">
-          {flavorRows.length === 0 && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm text-slate-400">
-              No flavor rows found.
-            </div>
-          )}
-
-          {flavorRows.map((row) => {
-            const flavorId = asCleanString(row[flavorIdColumn])
-            const isSelected = flavorId === selectedFlavorId
-            const label = pickFlavorName(row)
-            const description = pickFlavorDescription(row)
-
-            return (
-              <article key={flavorId || JSON.stringify(row)} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-100">{label}</p>
-                    <p className="mt-1 truncate text-xs text-slate-400" title={flavorId}>
-                      id: {flavorId || 'No id value'}
-                    </p>
-                    {description && (
-                      <p className="mt-1 truncate text-xs text-slate-300" title={description}>
-                        {description}
-                      </p>
-                    )}
-                  </div>
-                  <Link
-                    href={`/admin/humor-flavors?flavor=${encodeURIComponent(flavorId)}`}
-                    className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition ${
-                      isSelected
-                        ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
-                        : 'border-slate-700 text-slate-200 hover:border-slate-500'
-                    }`}
-                  >
-                    {isSelected ? 'Selected' : 'Select'}
-                  </Link>
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
         <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Caption Readout</p>
         <h3 className="mt-1 text-xl font-semibold">Captions Produced By Selected Flavor</h3>
         <p className="mt-1 text-sm text-slate-300">
@@ -641,6 +652,55 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           {imageRowsResult.error && <p className="mt-2 text-amber-200">Image load error: {imageRowsResult.error.message}</p>}
         </section>
       )}
+
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+        <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Flavor Directory</p>
+        <h3 className="mt-1 text-xl font-semibold">Pick Flavor To Manage</h3>
+        <p className="mt-1 text-sm text-slate-300">Newest flavors are listed first.</p>
+
+        <div className="mt-4 space-y-2">
+          {flavorRows.length === 0 && (
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm text-slate-400">
+              No flavor rows found.
+            </div>
+          )}
+
+          {flavorRows.map((row) => {
+            const flavorId = asCleanString(row[flavorIdColumn])
+            const isSelected = flavorId === selectedFlavorId
+            const label = pickFlavorName(row)
+            const description = pickFlavorDescription(row)
+
+            return (
+              <article key={flavorId || JSON.stringify(row)} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-100">{label}</p>
+                    <p className="mt-1 truncate text-xs text-slate-400" title={flavorId}>
+                      id: {flavorId || 'No id value'}
+                    </p>
+                    {description && (
+                      <p className="mt-1 truncate text-xs text-slate-300" title={description}>
+                        {description}
+                      </p>
+                    )}
+                  </div>
+                  <Link
+                    href={`/admin/humor-flavors?flavor=${encodeURIComponent(flavorId)}`}
+                    className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition ${
+                      isSelected
+                        ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                        : 'border-slate-700 text-slate-200 hover:border-slate-500'
+                    }`}
+                  >
+                    {isSelected ? 'Selected' : 'Select'}
+                  </Link>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </section>
     </div>
   )
 }

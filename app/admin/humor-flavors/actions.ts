@@ -6,11 +6,17 @@ import { redirect } from 'next/navigation'
 import {
   HUMOR_FLAVOR_STEP_TABLE_CANDIDATES,
   HUMOR_FLAVOR_TABLE_CANDIDATES,
+  STEP_INPUT_TYPE_COLUMN_CANDIDATES,
+  STEP_MODEL_COLUMN_CANDIDATES,
+  STEP_OUTPUT_TYPE_COLUMN_CANDIDATES,
   STEP_FLAVOR_COLUMN_CANDIDATES,
   STEP_ORDER_COLUMN_CANDIDATES,
+  STEP_TEMPERATURE_COLUMN_CANDIDATES,
+  STEP_TYPE_COLUMN_CANDIDATES,
   asCleanString,
   parseJsonObjectOrThrow,
   pickStepOrderValue,
+  resolveFirstExistingColumn,
   resolveFirstExistingTable,
   sortStepsByOrder,
 } from '@/lib/admin/humor-flavors'
@@ -176,18 +182,48 @@ export async function deleteHumorFlavorAction(formData: FormData) {
 
 async function resolveDefaultStepColumns(
   supabase: Awaited<ReturnType<typeof requireSuperadminOrMatrixAdmin>>['supabase'],
-  tableName: string
+  tableName: string,
+  flavorId?: string
 ) {
-  const { data, error } = await supabase.from(tableName).select('*').limit(250)
+  const { data, error } = await supabase.from(tableName).select('*').limit(500)
   if (error) {
     throw new Error(error.message)
   }
 
   const rows = (data ?? []) as Record<string, unknown>[]
-  const flavorColumn = STEP_FLAVOR_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row)) ?? 'humor_flavor_id'
-  const orderColumn = STEP_ORDER_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row)) ?? 'step_order'
+  const flavorColumn = STEP_FLAVOR_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row))
+    ?? (await resolveFirstExistingColumn(supabase, tableName, STEP_FLAVOR_COLUMN_CANDIDATES))
+    ?? 'humor_flavor_id'
+  const orderColumn = STEP_ORDER_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row))
+    ?? (await resolveFirstExistingColumn(supabase, tableName, STEP_ORDER_COLUMN_CANDIDATES))
+    ?? 'step_order'
 
-  return { flavorColumn, orderColumn }
+  const modelColumn = STEP_MODEL_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row))
+    ?? (await resolveFirstExistingColumn(supabase, tableName, STEP_MODEL_COLUMN_CANDIDATES))
+  const inputTypeColumn = STEP_INPUT_TYPE_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row))
+    ?? (await resolveFirstExistingColumn(supabase, tableName, STEP_INPUT_TYPE_COLUMN_CANDIDATES))
+  const outputTypeColumn = STEP_OUTPUT_TYPE_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row))
+    ?? (await resolveFirstExistingColumn(supabase, tableName, STEP_OUTPUT_TYPE_COLUMN_CANDIDATES))
+  const stepTypeColumn = STEP_TYPE_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row))
+    ?? (await resolveFirstExistingColumn(supabase, tableName, STEP_TYPE_COLUMN_CANDIDATES))
+  const temperatureColumn = STEP_TEMPERATURE_COLUMN_CANDIDATES.find((candidate) => rows.some((row) => candidate in row))
+    ?? (await resolveFirstExistingColumn(supabase, tableName, STEP_TEMPERATURE_COLUMN_CANDIDATES))
+
+  const parsedFlavorId = flavorId ? parseMaybeJson(flavorId) : null
+  const templateRow = parsedFlavorId === null
+    ? (rows[0] ?? null)
+    : (rows.find((row) => row[flavorColumn] === parsedFlavorId) ?? rows[0] ?? null)
+
+  return {
+    flavorColumn,
+    orderColumn,
+    modelColumn,
+    inputTypeColumn,
+    outputTypeColumn,
+    stepTypeColumn,
+    temperatureColumn,
+    templateRow,
+  }
 }
 
 async function getNextStepOrder(
@@ -227,7 +263,7 @@ export async function createHumorFlavorStepAction(formData: FormData) {
   try {
     const payload = parseJsonObjectOrThrow(normalizeText(formData.get('payload')))
     const { supabase, user, tableName } = await resolveStepTableOrThrow()
-    const defaults = await resolveDefaultStepColumns(supabase, tableName)
+    const defaults = await resolveDefaultStepColumns(supabase, tableName, flavorId || undefined)
     const flavorColumn = suppliedFlavorColumn || defaults.flavorColumn
     const orderColumn = suppliedOrderColumn || defaults.orderColumn
 
@@ -239,11 +275,32 @@ export async function createHumorFlavorStepAction(formData: FormData) {
       payload[orderColumn] = await getNextStepOrder(supabase, tableName, flavorColumn, flavorId, orderColumn)
     }
 
+    const fillFromTemplate = (columnName: string | null | undefined) => {
+      if (!columnName) return
+      if (columnName in payload) return
+      const templateValue = defaults.templateRow?.[columnName]
+      if (templateValue !== undefined && templateValue !== null && templateValue !== '') {
+        payload[columnName] = templateValue
+      }
+    }
+
+    fillFromTemplate(defaults.modelColumn)
+    fillFromTemplate(defaults.inputTypeColumn)
+    fillFromTemplate(defaults.outputTypeColumn)
+    fillFromTemplate(defaults.stepTypeColumn)
+    fillFromTemplate(defaults.temperatureColumn)
+
     const { error } = await supabase
       .from(tableName)
       .insert(withCreateAuditFields(payload, user.id))
 
     if (error) {
+      const nullColumnMatch = error.message.match(/null value in column \"([^\"]+)\"/i)
+      if (nullColumnMatch) {
+        throw new Error(
+          `${error.message}. Add "${nullColumnMatch[1]}" to your step payload, or create one complete step first so defaults can be reused.`
+        )
+      }
       throw new Error(error.message)
     }
 

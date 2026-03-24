@@ -10,6 +10,11 @@ export const FLAVOR_DESCRIPTION_COLUMN_CANDIDATES = ['description', 'details', '
 export const STEP_ORDER_COLUMN_CANDIDATES = ['order_by', 'step_order', 'step_number', 'order_index', 'position', 'sequence', 'step_index']
 export const STEP_FLAVOR_COLUMN_CANDIDATES = ['humor_flavor_id', 'humor_flavor', 'flavor_id', 'flavor', 'chain_id', 'prompt_chain_id']
 export const STEP_PROMPT_COLUMN_CANDIDATES = ['llm_user_prompt', 'llm_system_prompt', 'description', 'prompt', 'step_prompt', 'instruction', 'text', 'content', 'template']
+export const STEP_MODEL_COLUMN_CANDIDATES = ['llm_model_id']
+export const STEP_INPUT_TYPE_COLUMN_CANDIDATES = ['llm_input_type_id']
+export const STEP_OUTPUT_TYPE_COLUMN_CANDIDATES = ['llm_output_type_id']
+export const STEP_TYPE_COLUMN_CANDIDATES = ['humor_flavor_step_type_id', 'step_type_id']
+export const STEP_TEMPERATURE_COLUMN_CANDIDATES = ['llm_temperature', 'temperature']
 export const CAPTION_FLAVOR_COLUMN_CANDIDATES = ['humor_flavor_id', 'humor_flavor', 'flavor_id', 'flavor', 'prompt_chain']
 
 interface TableResolution {
