@@ -8,7 +8,7 @@ Standalone Next.js + Supabase project for managing humor flavors and flavor step
 
 ## Delivered Features
 
-- Auth gate: only users with `profiles.is_superadmin == TRUE` or `profiles.is_matrix_admin == TRUE`.
+- Auth gate: only users with `profiles.is_superadmin == TRUE` (Google-authenticated users only).
 - Create, update, delete humor flavors.
 - Create, update, delete humor flavor steps.
 - Reorder humor flavor steps (move up/down by swapping step order values).
