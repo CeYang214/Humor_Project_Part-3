@@ -5,6 +5,7 @@ Standalone Next.js + Supabase admin app for database operations and analytics.
 ## Core Routes
 
 - `/admin` (dashboard stats)
+- `/admin/humor-flavors` (prompt-chain flavor/step CRUD + step reorder + API tester)
 - `/admin/users` (read users/profiles)
 - `/admin/images` (create/read/update/delete images + upload)
 - `/admin/captions` (read captions)
@@ -13,14 +14,20 @@ Standalone Next.js + Supabase admin app for database operations and analytics.
 ## Delivered Features
 
 - Google-authenticated admin wall.
-- Admin access restricted to `profiles.is_superadmin == TRUE`.
+- Admin access restricted to `profiles.is_superadmin == TRUE OR profiles.is_matrix_admin == TRUE`.
 - Interesting dashboard statistics with exact KPI counts.
+- Prompt-chain tool for Assignment 6:
+  - create/update/delete humor flavors
+  - create/update/delete humor flavor steps
+  - reorder humor flavor steps (up/down or target position)
+  - read captions for selected flavor (when captions table stores flavor linkage)
+  - generate captions on an image test set through `https://api.almostcrackd.ai`
 - Required CRUD/read capabilities from the assignment:
   - `profiles`: read
   - `images`: create/read/update/delete + upload
   - `captions`: read
-  - `humor_flavors`: read
-  - `humor_flavor_steps`: read
+  - `humor_flavors`: create/read/update/delete
+  - `humor_flavor_steps`: create/read/update/delete + reorder
   - `humor_mix`: read/update
   - `terms`: create/read/update/delete
   - `caption_requests`: read

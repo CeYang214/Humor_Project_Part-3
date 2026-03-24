@@ -84,7 +84,5 @@ export async function requireSuperadmin(): Promise<AdminContext> {
 }
 
 export async function requireSuperadminOrMatrixAdmin(): Promise<AdminContext> {
-  // Kept for backward compatibility with existing imports.
-  // This admin app now enforces strict superadmin-only access.
-  return requireAdminRole({ allowMatrixAdmin: false })
+  return requireAdminRole({ allowMatrixAdmin: true })
 }
