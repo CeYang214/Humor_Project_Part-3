@@ -3,11 +3,6 @@ import Link from 'next/link'
 
 import { requireSuperadminOrMatrixAdmin } from '@/lib/supabase/admin'
 
-type ProfileRow = {
-  id: string
-  is_superadmin: boolean | null
-}
-
 type ImageRow = {
   id: string
   url: string | null
@@ -27,10 +22,6 @@ type VoteRow = {
   vote_value: number | null
 }
 
-function toBoolean(value: unknown) {
-  return value === true || value === 'true' || value === 1 || value === '1'
-}
-
 function formatPercent(value: number) {
   if (!Number.isFinite(value)) return '0%'
   return `${Math.round(value)}%`
@@ -46,28 +37,56 @@ function normalizeDate(value: string | null) {
 export default async function AdminDashboardPage() {
   const { supabase } = await requireSuperadminOrMatrixAdmin()
 
-  const [profilesResult, imagesResult, captionsResult, votesResult] = await Promise.all([
-    supabase.from('profiles').select('id, is_superadmin'),
-    supabase.from('images').select('id, url'),
-    supabase.from('captions').select('id, profile_id, image_id, created_datetime_utc, is_public, content'),
-    supabase.from('caption_votes').select('caption_id, vote_value'),
+  const [
+    profilesCountResult,
+    superadminsCountResult,
+    imagesCountResult,
+    captionsCountResult,
+    publicCaptionsCountResult,
+    votesCountResult,
+    imagesResult,
+    captionsResult,
+    votesResult,
+  ] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_superadmin', true),
+    supabase.from('images').select('*', { count: 'exact', head: true }),
+    supabase.from('captions').select('*', { count: 'exact', head: true }),
+    supabase.from('captions').select('*', { count: 'exact', head: true }).eq('is_public', true),
+    supabase.from('caption_votes').select('*', { count: 'exact', head: true }),
+    supabase.from('images').select('id, url').limit(2000),
+    supabase
+      .from('captions')
+      .select('id, profile_id, image_id, created_datetime_utc, is_public, content')
+      .order('created_datetime_utc', { ascending: false })
+      .limit(2000),
+    supabase.from('caption_votes').select('caption_id, vote_value').limit(4000),
   ])
 
-  const errors = [profilesResult.error, imagesResult.error, captionsResult.error, votesResult.error]
-    .filter((error): error is NonNullable<typeof profilesResult.error> => Boolean(error))
+  const errors = [
+    profilesCountResult.error,
+    superadminsCountResult.error,
+    imagesCountResult.error,
+    captionsCountResult.error,
+    publicCaptionsCountResult.error,
+    votesCountResult.error,
+    imagesResult.error,
+    captionsResult.error,
+    votesResult.error,
+  ]
+    .filter((error): error is NonNullable<typeof imagesResult.error> => Boolean(error))
     .map((error) => error.message)
 
-  const profiles = (profilesResult.data ?? []) as ProfileRow[]
   const images = (imagesResult.data ?? []) as ImageRow[]
   const captions = (captionsResult.data ?? []) as CaptionRow[]
   const votes = (votesResult.data ?? []) as VoteRow[]
 
-  const totalProfiles = profiles.length
-  const totalSuperadmins = profiles.filter((profile) => toBoolean(profile.is_superadmin)).length
-  const totalImages = images.length
-  const totalCaptions = captions.length
-  const totalVotes = votes.length
-  const publicCaptions = captions.filter((caption) => caption.is_public === true).length
+  const totalProfiles = profilesCountResult.count ?? 0
+  const totalSuperadmins = superadminsCountResult.count ?? 0
+  const totalImages = imagesCountResult.count ?? 0
+  const totalCaptions = captionsCountResult.count ?? 0
+  const totalVotes = votesCountResult.count ?? 0
+  const publicCaptions = publicCaptionsCountResult.count ?? 0
 
   const captionsPerImage = totalImages > 0 ? totalCaptions / totalImages : 0
   const publicCaptionPercent = totalCaptions > 0 ? (publicCaptions / totalCaptions) * 100 : 0
@@ -143,6 +162,9 @@ export default async function AdminDashboardPage() {
         <h2 className="mt-2 text-3xl font-semibold">Humor Data Control Center</h2>
         <p className="mt-3 max-w-3xl text-sm text-slate-300">
           Snapshot of platform activity across accounts, uploads, captions, and voting behavior.
+        </p>
+        <p className="mt-2 max-w-3xl text-xs text-slate-400">
+          KPI totals use exact database counts; trend charts below are based on recent sampled rows for performance.
         </p>
         <Link
           href="/admin/operations"

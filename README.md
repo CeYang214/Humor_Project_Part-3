@@ -1,19 +1,36 @@
-# Humor Prompt Chain Tool
+# Humor Admin Area
 
-Standalone Next.js + Supabase project for managing humor flavors and flavor steps.
+Standalone Next.js + Supabase admin app for database operations and analytics.
 
-## Core Route
+## Core Routes
 
-- `/admin/prompt-chain`
+- `/admin` (dashboard stats)
+- `/admin/users` (read users/profiles)
+- `/admin/images` (create/read/update/delete images + upload)
+- `/admin/captions` (read captions)
+- `/admin/operations` (expanded table operations)
 
 ## Delivered Features
 
-- Auth gate: only users with `profiles.is_superadmin == TRUE` (Google-authenticated users only).
-- Create, update, delete humor flavors.
-- Create, update, delete humor flavor steps.
-- Reorder humor flavor steps (move up/down by swapping step order values).
-- Read captions produced by the selected flavor (best-effort flavor reference detection).
-- Test a flavor against image test-set rows by calling `https://api.almostcrackd.ai`.
+- Google-authenticated admin wall.
+- Admin access restricted to `profiles.is_superadmin == TRUE`.
+- Interesting dashboard statistics with exact KPI counts.
+- Required CRUD/read capabilities from the assignment:
+  - `profiles`: read
+  - `images`: create/read/update/delete + upload
+  - `captions`: read
+  - `humor_flavors`: read
+  - `humor_flavor_steps`: read
+  - `humor_mix`: read/update
+  - `terms`: create/read/update/delete
+  - `caption_requests`: read
+  - `caption_examples`: create/read/update/delete
+  - `llm_models`: create/read/update/delete
+  - `llm_providers`: create/read/update/delete
+  - `llm_prompt_chains`: read
+  - `llm_responses`: read
+  - `allowed_signup_domains`: create/read/update/delete
+  - `whitelisted_email_addresses`: create/read/update/delete
 - Theme mode toggle: `system`, `light`, `dark`.
 
 ## Environment Variables
@@ -34,10 +51,9 @@ npm run dev
 
 ## Submission Checklist
 
-1. Push this folder as a **new GitHub repository** for the prompt-chain tool.
+1. Push this folder as a **new GitHub repository** for the admin app.
 2. Create a **new Vercel project** from that repo.
 3. In Vercel, set **Deployment Protection** to **Off**.
-4. Submit commit-specific Vercel URLs for all three apps:
+4. Submit commit-specific Vercel URLs for:
    - caption creation + rating app
    - admin area app
-   - prompt chain tool app

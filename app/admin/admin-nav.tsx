@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 
 const LINKS = [
   { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/prompt-chain', label: 'Prompt Chain Tool' },
   { href: '/admin/operations', label: 'Data Operations' },
   { href: '/admin/users', label: 'Users / Profiles' },
   { href: '/admin/images', label: 'Images' },
