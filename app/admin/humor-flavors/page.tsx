@@ -90,6 +90,26 @@ function formatDate(value: unknown) {
   return parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+function getFlavorSortTime(row: DataRow) {
+  const dateCandidates = [
+    row.created_datetime_utc,
+    row.modified_datetime_utc,
+    row.created_at,
+    row.updated_at,
+  ]
+
+  for (const candidate of dateCandidates) {
+    const text = asCleanString(candidate)
+    if (!text) continue
+    const parsed = new Date(text)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getTime()
+    }
+  }
+
+  return Number.NaN
+}
+
 export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavorsPageProps) {
   const { supabase } = await requireSuperadminOrMatrixAdmin()
   const params = await searchParams
@@ -119,7 +139,24 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
   const flavorRows = ((flavorRowsResult.data ?? []) as DataRow[])
     .filter((row) => Object.keys(row).length > 0)
-    .sort((a, b) => pickFlavorName(a).localeCompare(pickFlavorName(b)))
+    .sort((a, b) => {
+      const aTime = getFlavorSortTime(a)
+      const bTime = getFlavorSortTime(b)
+
+      if (!Number.isNaN(aTime) || !Number.isNaN(bTime)) {
+        if (Number.isNaN(aTime)) return 1
+        if (Number.isNaN(bTime)) return -1
+        if (aTime !== bTime) return bTime - aTime
+      }
+
+      const aId = Number(asCleanString(a.id))
+      const bId = Number(asCleanString(b.id))
+      if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) {
+        return bId - aId
+      }
+
+      return pickFlavorName(a).localeCompare(pickFlavorName(b))
+    })
 
   const stepRows = ((stepRowsResult.data ?? []) as DataRow[])
     .filter((row) => Object.keys(row).length > 0)
@@ -272,6 +309,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             <p className="mt-1 text-xs text-slate-400">
               Detected flavor name column: {flavorNameColumn} | description column: {flavorDescriptionColumn}
             </p>
+            <p className="mt-1 text-xs text-slate-400">Flavors are sorted newest first.</p>
           </div>
           <Link
             href="/admin/operations?entity=humor_flavors"
@@ -299,81 +337,48 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           </button>
         </form>
 
-        <div className="mt-5 space-y-3">
-          {flavorRows.length === 0 && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm text-slate-400">
-              No flavor rows found.
-            </div>
-          )}
+        {selectedFlavor && (
+          <article className="mt-5 rounded-xl border border-cyan-400/40 bg-cyan-500/10 p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Selected Flavor</p>
+            <p className="mt-2 text-lg font-semibold text-slate-100">{selectedFlavorName}</p>
+            <p className="mt-1 text-xs text-slate-300" title={selectedFlavorId}>
+              id: {selectedFlavorId}
+            </p>
 
-          {flavorRows.map((row) => {
-            const flavorId = asCleanString(row[flavorIdColumn])
-            const isSelected = flavorId === selectedFlavorId
-            const label = pickFlavorName(row)
-            const description = pickFlavorDescription(row)
+            <form action={updateHumorFlavorAction} className="mt-3 grid gap-2">
+              <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+              <input type="hidden" name="id_column" value={flavorIdColumn} />
+              <label className="grid gap-1 text-xs text-slate-300">
+                Update selected flavor (JSON)
+                <textarea
+                  name="payload"
+                  rows={8}
+                  defaultValue={stringifyJson(selectedFlavor)}
+                  className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  className="rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
+                >
+                  Update Selected Flavor
+                </button>
+              </div>
+            </form>
 
-            return (
-              <article key={flavorId || JSON.stringify(row)} className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-100">{label}</p>
-                    <p className="mt-1 text-xs text-slate-400" title={flavorId}>
-                      {flavorId || 'No id value'}
-                    </p>
-                    {description && (
-                      <p className="mt-1 text-xs text-slate-300" title={description}>
-                        {description}
-                      </p>
-                    )}
-                  </div>
-                  <Link
-                    href={`/admin/humor-flavors?flavor=${encodeURIComponent(flavorId)}`}
-                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
-                      isSelected
-                        ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
-                        : 'border-slate-700 text-slate-200 hover:border-slate-500'
-                    }`}
-                  >
-                    {isSelected ? 'Selected Flavor' : 'Manage Steps'}
-                  </Link>
-                </div>
-
-                <form action={updateHumorFlavorAction} className="mt-3 grid gap-2">
-                  <input type="hidden" name="flavor_id" value={flavorId} />
-                  <input type="hidden" name="id_column" value={flavorIdColumn} />
-                  <label className="grid gap-1 text-xs text-slate-300">
-                    Update flavor row (JSON)
-                    <textarea
-                      name="payload"
-                      rows={8}
-                      defaultValue={stringifyJson(row)}
-                      className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
-                    />
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="submit"
-                      className="rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
-                    >
-                      Update Flavor
-                    </button>
-                  </div>
-                </form>
-
-                <form action={deleteHumorFlavorAction} className="mt-2">
-                  <input type="hidden" name="flavor_id" value={flavorId} />
-                  <input type="hidden" name="id_column" value={flavorIdColumn} />
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-rose-500/60 px-3 py-2 text-xs text-rose-100 transition hover:bg-rose-500/20"
-                  >
-                    Delete Flavor
-                  </button>
-                </form>
-              </article>
-            )
-          })}
-        </div>
+            <form action={deleteHumorFlavorAction} className="mt-2">
+              <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+              <input type="hidden" name="id_column" value={flavorIdColumn} />
+              <button
+                type="submit"
+                className="rounded-lg border border-rose-500/60 px-3 py-2 text-xs text-rose-100 transition hover:bg-rose-500/20"
+              >
+                Delete Selected Flavor
+              </button>
+            </form>
+          </article>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
@@ -528,6 +533,55 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         ) : (
           <p className="mt-3 text-sm text-slate-300">Create a flavor first, then select it to manage steps.</p>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+        <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Flavor Directory</p>
+        <h3 className="mt-1 text-xl font-semibold">Pick Flavor To Manage</h3>
+        <p className="mt-1 text-sm text-slate-300">Newest flavors are listed first.</p>
+
+        <div className="mt-4 space-y-2">
+          {flavorRows.length === 0 && (
+            <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm text-slate-400">
+              No flavor rows found.
+            </div>
+          )}
+
+          {flavorRows.map((row) => {
+            const flavorId = asCleanString(row[flavorIdColumn])
+            const isSelected = flavorId === selectedFlavorId
+            const label = pickFlavorName(row)
+            const description = pickFlavorDescription(row)
+
+            return (
+              <article key={flavorId || JSON.stringify(row)} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-100">{label}</p>
+                    <p className="mt-1 truncate text-xs text-slate-400" title={flavorId}>
+                      id: {flavorId || 'No id value'}
+                    </p>
+                    {description && (
+                      <p className="mt-1 truncate text-xs text-slate-300" title={description}>
+                        {description}
+                      </p>
+                    )}
+                  </div>
+                  <Link
+                    href={`/admin/humor-flavors?flavor=${encodeURIComponent(flavorId)}`}
+                    className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition ${
+                      isSelected
+                        ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                        : 'border-slate-700 text-slate-200 hover:border-slate-500'
+                    }`}
+                  >
+                    {isSelected ? 'Selected' : 'Select'}
+                  </Link>
+                </div>
+              </article>
+            )
+          })}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
