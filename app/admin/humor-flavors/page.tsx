@@ -13,6 +13,7 @@ import { FlavorTester } from '@/app/admin/humor-flavors/flavor-tester'
 import {
   CAPTION_FLAVOR_COLUMN_CANDIDATES,
   FLAVOR_DESCRIPTION_COLUMN_CANDIDATES,
+  FLAVOR_NAME_COLUMN_CANDIDATES,
   HUMOR_FLAVOR_STEP_TABLE_CANDIDATES,
   HUMOR_FLAVOR_TABLE_CANDIDATES,
   STEP_FLAVOR_COLUMN_CANDIDATES,
@@ -110,6 +111,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
   const stepFlavorColumn = pickFirstExistingColumn(stepRows, STEP_FLAVOR_COLUMN_CANDIDATES) ?? 'humor_flavor_id'
   const stepOrderColumn = pickFirstExistingColumn(stepRows, STEP_ORDER_COLUMN_CANDIDATES) ?? 'step_order'
   const stepPromptColumn = pickFirstExistingColumn(stepRows, STEP_PROMPT_COLUMN_CANDIDATES) ?? 'prompt'
+  const flavorNameColumn = pickFirstExistingColumn(flavorRows, FLAVOR_NAME_COLUMN_CANDIDATES) ?? 'slug'
   const flavorDescriptionColumn = pickFirstExistingColumn(flavorRows, FLAVOR_DESCRIPTION_COLUMN_CANDIDATES) ?? 'description'
 
   const selectedFlavorFromQuery = asCleanString(params.flavor)
@@ -134,8 +136,8 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
   }, 0)
 
   const defaultFlavorPayload = stringifyJson({
-    name: 'Sarcastic Dry Humor',
-    description: 'Step-based prompt chain for short, sharp captions.',
+    [flavorNameColumn]: 'Sarcastic Dry Humor',
+    [flavorDescriptionColumn]: 'Step-based prompt chain for short, sharp captions.',
   })
 
   const defaultStepPayload = stringifyJson({
@@ -211,6 +213,9 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             <h3 className="mt-1 text-xl font-semibold">Flavor CRUD</h3>
             <p className="mt-1 text-sm text-slate-300">
               Table: {flavorTableResolution.tableName ?? HUMOR_FLAVOR_TABLE_CANDIDATES[0]} | ID column: {flavorIdColumn}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Detected flavor name column: {flavorNameColumn} | description column: {flavorDescriptionColumn}
             </p>
           </div>
           <Link

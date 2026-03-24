@@ -5,7 +5,7 @@ export type DataRow = Record<string, unknown>
 export const HUMOR_FLAVOR_TABLE_CANDIDATES = ['humor_flavors', 'humor_flavor']
 export const HUMOR_FLAVOR_STEP_TABLE_CANDIDATES = ['humor_flavor_steps', 'humor_flavor_step']
 
-export const FLAVOR_NAME_COLUMN_CANDIDATES = ['name', 'label', 'title', 'flavor_name', 'humor_flavor']
+export const FLAVOR_NAME_COLUMN_CANDIDATES = ['slug', 'name', 'label', 'title', 'flavor_name', 'humor_flavor']
 export const FLAVOR_DESCRIPTION_COLUMN_CANDIDATES = ['description', 'details', 'prompt', 'notes']
 export const STEP_ORDER_COLUMN_CANDIDATES = ['step_order', 'step_number', 'order_index', 'position', 'sequence', 'step_index']
 export const STEP_FLAVOR_COLUMN_CANDIDATES = ['humor_flavor_id', 'humor_flavor', 'flavor_id', 'flavor', 'chain_id', 'prompt_chain_id']
