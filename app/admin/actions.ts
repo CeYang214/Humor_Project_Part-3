@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/server'
 
 type ActionStatus = 'success' | 'error'
 type AdminRedirectTarget = '/admin/operations'
+type JsonObject = Record<string, unknown>
 
 function normalizeText(value: FormDataEntryValue | null) {
   if (typeof value !== 'string') return ''
@@ -55,7 +56,7 @@ function assertEntity(entityKey: string) {
 
 async function resolveEntityTableOrThrow(entityKey: string) {
   const entity = assertEntity(entityKey)
-  const { supabase } = await requireSuperadminOrMatrixAdmin()
+  const { supabase, user } = await requireSuperadminOrMatrixAdmin()
   const resolution = await resolveEntityTableName(supabase, entity)
 
   if (!resolution.tableName) {
@@ -64,8 +65,24 @@ async function resolveEntityTableOrThrow(entityKey: string) {
 
   return {
     supabase,
+    user,
     entity,
     tableName: resolution.tableName,
+  }
+}
+
+function withCreateAuditFields(payload: JsonObject, userId: string): JsonObject {
+  return {
+    ...payload,
+    created_by_user_id: userId,
+    modified_by_user_id: userId,
+  }
+}
+
+function withUpdateAuditFields(payload: JsonObject, userId: string): JsonObject {
+  return {
+    ...payload,
+    modified_by_user_id: userId,
   }
 }
 
@@ -81,13 +98,13 @@ export async function createEntityAction(formData: FormData) {
 
   try {
     const payload = parseJsonObject(normalizeText(formData.get('payload')))
-    const { supabase, entity, tableName } = await resolveEntityTableOrThrow(entityKey)
+    const { supabase, user, entity, tableName } = await resolveEntityTableOrThrow(entityKey)
 
     if (!entitySupportsCreate(entity)) {
       redirect(getEntityMessagePath(redirectTarget, 'error', `${entity.label} is read-only.`, entityKey))
     }
 
-    const { error } = await supabase.from(tableName).insert(payload)
+    const { error } = await supabase.from(tableName).insert(withCreateAuditFields(payload, user.id))
 
     if (error) {
       throw new Error(error.message)
@@ -113,7 +130,7 @@ export async function updateEntityAction(formData: FormData) {
     }
 
     const matchValue = parseMatchValue(normalizeText(formData.get('match_value')))
-    const { supabase, entity, tableName } = await resolveEntityTableOrThrow(entityKey)
+    const { supabase, user, entity, tableName } = await resolveEntityTableOrThrow(entityKey)
 
     if (!entitySupportsUpdate(entity)) {
       redirect(getEntityMessagePath(redirectTarget, 'error', `${entity.label} does not allow updates.`, entityKey))
@@ -121,7 +138,7 @@ export async function updateEntityAction(formData: FormData) {
 
     const { error } = await supabase
       .from(tableName)
-      .update(payload)
+      .update(withUpdateAuditFields(payload, user.id))
       .eq(matchColumn, matchValue)
 
     if (error) {
@@ -223,6 +240,8 @@ export async function uploadImageAction(formData: FormData) {
       .insert({
         url: imageUrl,
         profile_id: user.id,
+        created_by_user_id: user.id,
+        modified_by_user_id: user.id,
       })
 
     if (insertError) {
@@ -257,6 +276,8 @@ export async function createImageAction(formData: FormData) {
     .insert({
       url: validatedUrl.toString(),
       profile_id: user.id,
+      created_by_user_id: user.id,
+      modified_by_user_id: user.id,
     })
 
   if (error) {
@@ -268,7 +289,7 @@ export async function createImageAction(formData: FormData) {
 }
 
 export async function updateImageAction(formData: FormData) {
-  const { supabase } = await requireSuperadminOrMatrixAdmin()
+  const { supabase, user } = await requireSuperadminOrMatrixAdmin()
   const id = normalizeText(formData.get('id'))
   const url = normalizeText(formData.get('url'))
 
@@ -285,7 +306,7 @@ export async function updateImageAction(formData: FormData) {
 
   const { error } = await supabase
     .from('images')
-    .update({ url: validatedUrl.toString() })
+    .update({ url: validatedUrl.toString(), modified_by_user_id: user.id })
     .eq('id', id)
 
   if (error) {

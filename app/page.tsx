@@ -276,19 +276,37 @@ export default function Home() {
     setVoteStatus(prev => ({ ...prev, [captionId]: 'saving' }))
     setVoteMessage(prev => ({ ...prev, [captionId]: '' }))
 
-    const now = new Date().toISOString()
-    const { error } = await supabase.from('caption_votes').upsert(
-      {
-        caption_id: captionId,
-        profile_id: user.id,
-        vote_value: value,
-        created_datetime_utc: now,
-        modified_datetime_utc: now,
-      },
-      {
-        onConflict: 'profile_id,caption_id',
-      }
-    )
+    const { data: existingVote, error: lookupError } = await supabase
+      .from('caption_votes')
+      .select('caption_id')
+      .eq('profile_id', user.id)
+      .eq('caption_id', captionId)
+      .maybeSingle()
+
+    if (lookupError) {
+      setVoteStatus(prev => ({ ...prev, [captionId]: 'error' }))
+      setVoteMessage(prev => ({ ...prev, [captionId]: lookupError.message }))
+      return
+    }
+
+    const { error } = existingVote
+      ? await supabase
+          .from('caption_votes')
+          .update({
+            vote_value: value,
+            modified_by_user_id: user.id,
+          })
+          .eq('profile_id', user.id)
+          .eq('caption_id', captionId)
+      : await supabase
+          .from('caption_votes')
+          .insert({
+            caption_id: captionId,
+            profile_id: user.id,
+            vote_value: value,
+            created_by_user_id: user.id,
+            modified_by_user_id: user.id,
+          })
 
     if (error) {
       setVoteStatus(prev => ({ ...prev, [captionId]: 'error' }))
