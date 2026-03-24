@@ -310,6 +310,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
   const captions = (captionRowsResult.data ?? []) as DataRow[]
   const captionFlavorColumn = pickFirstExistingColumn(captions, CAPTION_FLAVOR_COLUMN_CANDIDATES)
+    ?? (await resolveFirstExistingColumn(supabase, 'captions', CAPTION_FLAVOR_COLUMN_CANDIDATES))
   const flavorCaptions = selectedFlavor
     ? captions.filter((row) => {
         if (!captionFlavorColumn) return false
@@ -658,6 +659,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           flavors={flavorOptions}
           images={testImages}
           defaultFlavorId={selectedFlavorId || flavorOptions[0].id}
+          captionFlavorColumn={captionFlavorColumn}
         />
       ) : (
         <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">

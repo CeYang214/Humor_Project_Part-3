@@ -22,6 +22,7 @@ interface TesterProps {
   flavors: FlavorOption[]
   images: TestImageOption[]
   defaultFlavorId: string
+  captionFlavorColumn: string | null
 }
 
 interface TestRunResult {
@@ -108,7 +109,99 @@ function normalizeCaptionList(raw: unknown) {
     .map((item, index) => getCaptionText(item, index))
 }
 
-export function FlavorTester({ flavors, images, defaultFlavorId }: TesterProps) {
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function parseFlavorValue(flavorId: string) {
+  const trimmed = flavorId.trim()
+  const numeric = Number(trimmed)
+  if (trimmed !== '' && Number.isFinite(numeric)) {
+    return numeric
+  }
+  return trimmed
+}
+
+async function tagRecentCaptionsForFlavor(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  imageId: string,
+  flavorId: string,
+  captionFlavorColumn: string,
+  expectedCount: number
+) {
+  const targetCount = Math.max(expectedCount, 1)
+  const fallbackRowLimit = Math.max(targetCount * 4, 12)
+  const flavorValue = parseFlavorValue(flavorId)
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const primaryResult = await supabase
+      .from('captions')
+      .select('id, created_datetime_utc')
+      .eq('profile_id', userId)
+      .eq('image_id', imageId)
+      .order('created_datetime_utc', { ascending: false })
+      .limit(fallbackRowLimit)
+
+    let rows: Array<Record<string, unknown>> = []
+    let lookupError: string | null = null
+
+    if (primaryResult.error && /column .* does not exist/i.test(primaryResult.error.message)) {
+      const fallbackResult = await supabase
+        .from('captions')
+        .select('id')
+        .eq('profile_id', userId)
+        .eq('image_id', imageId)
+        .limit(fallbackRowLimit)
+
+      if (fallbackResult.error) {
+        lookupError = fallbackResult.error.message
+      } else {
+        rows = (fallbackResult.data ?? []) as Array<Record<string, unknown>>
+      }
+    } else if (primaryResult.error) {
+      lookupError = primaryResult.error.message
+    } else {
+      rows = (primaryResult.data ?? []) as Array<Record<string, unknown>>
+    }
+
+    if (lookupError) {
+      throw new Error(`Caption tagging lookup failed: ${lookupError}`)
+    }
+
+    const captionIds = rows
+      .map((row) => (typeof row.id === 'string' || typeof row.id === 'number' ? String(row.id) : ''))
+      .filter((value) => value)
+      .slice(0, targetCount)
+
+    if (captionIds.length === 0) {
+      await sleep(700)
+      continue
+    }
+
+    const { data: updatedRows, error: updateError } = await supabase
+      .from('captions')
+      .update({
+        [captionFlavorColumn]: flavorValue,
+        modified_by_user_id: userId,
+      })
+      .eq('profile_id', userId)
+      .in('id', captionIds)
+      .select('id')
+
+    if (updateError) {
+      throw new Error(`Caption tagging update failed: ${updateError.message}`)
+    }
+
+    return (updatedRows ?? []).length
+  }
+
+  return 0
+}
+
+export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorColumn }: TesterProps) {
   const supabase = useMemo(() => createClient(), [])
   const [selectedFlavorId, setSelectedFlavorId] = useState(defaultFlavorId)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>(() => images.slice(0, 3).map((image) => image.id))
@@ -146,6 +239,8 @@ export function FlavorTester({ flavors, images, defaultFlavorId }: TesterProps) 
 
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
+    const { data: userData } = await supabase.auth.getUser()
+    const userId = userData.user?.id ?? ''
 
     if (sessionError || !token) {
       setIsRunning(false)
@@ -162,11 +257,37 @@ export function FlavorTester({ flavors, images, defaultFlavorId }: TesterProps) 
       try {
         const response = await callGenerateCaptions(token, imageId, activeFlavor)
         const captions = normalizeCaptionList(response)
+        let resultMessage = captions.length > 0 ? `Generated ${captions.length} caption(s).` : 'No captions returned.'
+
+        if (captionFlavorColumn && userId) {
+          try {
+            const taggedCount = await tagRecentCaptionsForFlavor(
+              supabase,
+              userId,
+              imageId,
+              activeFlavor.id,
+              captionFlavorColumn,
+              captions.length
+            )
+
+            if (taggedCount > 0) {
+              resultMessage += ` Tagged ${taggedCount} caption row(s) with this flavor.`
+            } else {
+              resultMessage += ' Caption rows were not yet available to tag; refresh in a moment.'
+            }
+          } catch (tagError) {
+            const tagMessage = tagError instanceof Error ? tagError.message : 'Caption tagging failed.'
+            resultMessage += ` ${tagMessage}`
+          }
+        } else {
+          resultMessage += ' Flavor tagging skipped (missing caption flavor column or user id).'
+        }
+
         runResults.push({
           imageId,
           imageUrl,
           status: 'success',
-          message: captions.length > 0 ? `Generated ${captions.length} caption(s).` : 'No captions returned.',
+          message: resultMessage,
           captions,
         })
       } catch (error) {

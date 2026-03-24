@@ -255,6 +255,29 @@ async function getNextStepOrder(
   return maxOrder + 1
 }
 
+async function resolveFirstTableId(
+  supabase: Awaited<ReturnType<typeof requireSuperadminOrMatrixAdmin>>['supabase'],
+  tableCandidates: string[]
+) {
+  for (const tableName of tableCandidates) {
+    const { data, error } = await supabase.from(tableName).select('id').limit(1)
+    if (error) {
+      if (/relation .* does not exist|table .* does not exist|could not find the table/i.test(error.message)) {
+        continue
+      }
+      continue
+    }
+
+    const firstRow = (data ?? [])[0] as Record<string, unknown> | undefined
+    if (!firstRow) continue
+    if (firstRow.id !== undefined && firstRow.id !== null && firstRow.id !== '') {
+      return firstRow.id
+    }
+  }
+
+  return null
+}
+
 export async function createHumorFlavorStepAction(formData: FormData) {
   const flavorId = normalizeText(formData.get('flavor_id'))
   const suppliedFlavorColumn = normalizeText(formData.get('flavor_column'))
@@ -290,6 +313,21 @@ export async function createHumorFlavorStepAction(formData: FormData) {
     fillFromTemplate(defaults.stepTypeColumn)
     fillFromTemplate(defaults.temperatureColumn)
 
+    const fillWithLookupFallback = async (columnName: string | null | undefined, tableCandidates: string[]) => {
+      if (!columnName) return
+      if (columnName in payload) return
+
+      const fallbackId = await resolveFirstTableId(supabase, tableCandidates)
+      if (fallbackId !== null) {
+        payload[columnName] = fallbackId
+      }
+    }
+
+    await fillWithLookupFallback(defaults.modelColumn, ['llm_models', 'llm_model'])
+    await fillWithLookupFallback(defaults.inputTypeColumn, ['llm_input_types', 'llm_input_type'])
+    await fillWithLookupFallback(defaults.outputTypeColumn, ['llm_output_types', 'llm_output_type'])
+    await fillWithLookupFallback(defaults.stepTypeColumn, ['humor_flavor_step_types', 'humor_flavor_step_type'])
+
     const { error } = await supabase
       .from(tableName)
       .insert(withCreateAuditFields(payload, user.id))
@@ -305,7 +343,8 @@ export async function createHumorFlavorStepAction(formData: FormData) {
     }
 
     revalidateAdminRoutes()
-    redirect(getMessagePath('success', 'Humor flavor step created.', flavorId))
+    const redirectFlavorId = flavorId || asCleanString(payload[flavorColumn])
+    redirect(getMessagePath('success', 'Humor flavor step created.', redirectFlavorId))
   } catch (error) {
     if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to create humor flavor step.'
