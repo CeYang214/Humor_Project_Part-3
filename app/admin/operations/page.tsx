@@ -24,6 +24,7 @@ interface AdminOperationsPageProps {
 const EMPTY_CREATE_PAYLOAD = JSON.stringify({
   label: 'Replace with real columns for this table',
 }, null, 2)
+const MAX_VISIBLE_ROWS_PER_ENTITY = 20
 
 function stringifyIdentifier(value: unknown) {
   return JSON.stringify(value)
@@ -48,6 +49,17 @@ export default async function AdminOperationsPage({ searchParams }: AdminOperati
         <p className="mt-2 text-sm text-slate-300">
           This page covers read and CRUD operations across users, images, flavors, LLM config tables, and moderation lists.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {snapshots.map((snapshot) => (
+            <a
+              key={`jump-${snapshot.entity.key}`}
+              href={`#entity-${snapshot.entity.key}`}
+              className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200 transition hover:border-cyan-400/60 hover:bg-cyan-500/10"
+            >
+              {snapshot.entity.label}
+            </a>
+          ))}
+        </div>
       </section>
 
       {bannerStatus && bannerMessage && (
@@ -67,6 +79,8 @@ export default async function AdminOperationsPage({ searchParams }: AdminOperati
         const canCreate = entitySupportsCreate(entity)
         const canUpdate = entitySupportsUpdate(entity)
         const canDelete = entitySupportsDelete(entity)
+        const visibleRows = rows.slice(0, MAX_VISIBLE_ROWS_PER_ENTITY)
+        const hiddenRowCount = Math.max(0, rows.length - visibleRows.length)
 
         return (
           <section
@@ -167,12 +181,22 @@ export default async function AdminOperationsPage({ searchParams }: AdminOperati
                 </div>
               )}
 
-              {rows.map((row, index) => {
+              {hiddenRowCount > 0 && (
+                <div className="admin-ops-info rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-3 text-xs text-cyan-100">
+                  Showing first {visibleRows.length} rows for layout/performance. {hiddenRowCount} additional row(s) are hidden.
+                </div>
+              )}
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                {visibleRows.map((row, index) => {
                 const identifier = pickRowIdentifier(row)
                 const rowJson = stringifyJson(row)
 
                 return (
-                  <article key={`${entity.key}-row-${index}`} className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+                  <article
+                    key={`${entity.key}-row-${index}`}
+                    className="min-w-0 rounded-xl border border-slate-800 bg-slate-950/70 p-4"
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs text-slate-400">
                         Row {index + 1}
@@ -180,7 +204,7 @@ export default async function AdminOperationsPage({ searchParams }: AdminOperati
                       </p>
                     </div>
 
-                    <pre className="mt-2 max-h-72 overflow-auto rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs text-slate-300">
+                    <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-800 bg-slate-900 p-3 text-xs text-slate-300">
                       {rowJson}
                     </pre>
 
@@ -222,7 +246,8 @@ export default async function AdminOperationsPage({ searchParams }: AdminOperati
                     )}
                   </article>
                 )
-              })}
+                })}
+              </div>
             </div>
           </section>
         )

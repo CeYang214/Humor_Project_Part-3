@@ -51,9 +51,9 @@ export function ThemeModeToggle() {
               key={theme}
               type="button"
               onClick={() => handleModeChange(theme)}
-              className={`rounded-lg border px-2 py-1.5 text-xs capitalize transition ${
+              className={`admin-theme-mode-btn rounded-lg border px-2 py-1.5 text-xs capitalize transition ${
                 isActive
-                  ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                  ? 'admin-theme-mode-btn-active border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
                   : 'border-slate-700 text-slate-300 hover:border-slate-500'
               }`}
             >

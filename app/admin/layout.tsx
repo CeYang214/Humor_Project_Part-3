@@ -13,7 +13,7 @@ export default async function AdminLayout({
   const { user } = await requireSuperadminOrMatrixAdmin()
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#082f49_0%,#020617_45%,#020617_100%)] text-slate-100">
+    <div className="admin-theme min-h-screen bg-[radial-gradient(circle_at_top_left,#082f49_0%,#020617_45%,#020617_100%)] text-slate-100">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row lg:gap-8 lg:px-8">
         <aside className="h-fit rounded-3xl border border-cyan-400/20 bg-slate-950/70 p-5 shadow-2xl backdrop-blur">
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">Admin Area</p>

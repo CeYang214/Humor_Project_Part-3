@@ -164,11 +164,11 @@ export default async function AdminDashboardPage() {
           Snapshot of platform activity across accounts, uploads, captions, and voting behavior.
         </p>
         <p className="mt-2 max-w-3xl text-xs text-slate-400">
-          KPI totals use exact database counts; trend charts below are based on recent sampled rows for performance.
+          KPI totals use exact database counts; charts below use recent sampled rows for responsiveness.
         </p>
         <Link
           href="/admin/operations"
-          className="mt-4 inline-flex rounded-xl border border-cyan-300/40 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+          className="admin-cta-link mt-4 inline-flex rounded-xl border border-cyan-300/40 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
         >
           Open Full Data Operations
         </Link>

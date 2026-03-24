@@ -96,7 +96,9 @@ export function UsersTable({ profiles }: UsersTableProps) {
                   <td className="px-3 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-1 text-xs ${
-                        isSuperadmin ? 'bg-cyan-500/20 text-cyan-200' : 'bg-slate-800 text-slate-300'
+                        isSuperadmin
+                          ? 'admin-super-badge bg-cyan-500/20 text-cyan-200'
+                          : 'bg-slate-800 text-slate-300'
                       }`}
                     >
                       {isSuperadmin ? 'superadmin' : 'standard'}

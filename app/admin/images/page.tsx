@@ -167,7 +167,7 @@ export default async function AdminImagesPage({ searchParams }: AdminImagesPageP
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="rounded-xl border border-cyan-500/60 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-500/20"
+                        className="admin-image-update-btn rounded-xl border border-cyan-500/60 px-3 py-2 text-sm text-cyan-100 transition hover:bg-cyan-500/20"
                       >
                         Update
                       </button>
@@ -178,7 +178,7 @@ export default async function AdminImagesPage({ searchParams }: AdminImagesPageP
                     <input type="hidden" name="id" value={id} />
                     <button
                       type="submit"
-                      className="rounded-xl border border-rose-500/60 px-3 py-2 text-sm text-rose-100 transition hover:bg-rose-500/20"
+                      className="admin-image-delete-btn rounded-xl border border-rose-500/60 px-3 py-2 text-sm text-rose-100 transition hover:bg-rose-500/20"
                     >
                       Delete Image
                     </button>

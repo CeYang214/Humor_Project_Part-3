@@ -23,9 +23,9 @@ export function AdminNav() {
           <Link
             key={link.href}
             href={link.href}
-            className={`rounded-xl px-3 py-2 text-sm transition ${
+            className={`admin-nav-link rounded-xl px-3 py-2 text-sm transition ${
               isActive
-                ? 'bg-cyan-400/20 text-cyan-100 ring-1 ring-cyan-300/40'
+                ? 'admin-nav-link-active bg-cyan-400/20 text-cyan-100 ring-1 ring-cyan-300/40'
                 : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
             }`}
           >
