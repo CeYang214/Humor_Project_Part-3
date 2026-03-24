@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/client'
 
@@ -203,6 +204,7 @@ async function tagRecentCaptionsForFlavor(
 
 export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorColumn }: TesterProps) {
   const supabase = useMemo(() => createClient(), [])
+  const router = useRouter()
   const [selectedFlavorId, setSelectedFlavorId] = useState(defaultFlavorId)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>(() => images.slice(0, 3).map((image) => image.id))
   const [isRunning, setIsRunning] = useState(false)
@@ -306,6 +308,7 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
     const successCount = runResults.filter((item) => item.status === 'success').length
     setStatusMessage(`Completed ${runResults.length} run(s). Success: ${successCount}.`)
     setIsRunning(false)
+    router.refresh()
   }
 
   return (
