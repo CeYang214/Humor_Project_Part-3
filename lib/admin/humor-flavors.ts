@@ -7,9 +7,9 @@ export const HUMOR_FLAVOR_STEP_TABLE_CANDIDATES = ['humor_flavor_steps', 'humor_
 
 export const FLAVOR_NAME_COLUMN_CANDIDATES = ['slug', 'name', 'label', 'title', 'flavor_name', 'humor_flavor']
 export const FLAVOR_DESCRIPTION_COLUMN_CANDIDATES = ['description', 'details', 'prompt', 'notes']
-export const STEP_ORDER_COLUMN_CANDIDATES = ['step_order', 'step_number', 'order_index', 'position', 'sequence', 'step_index']
+export const STEP_ORDER_COLUMN_CANDIDATES = ['order_by', 'step_order', 'step_number', 'order_index', 'position', 'sequence', 'step_index']
 export const STEP_FLAVOR_COLUMN_CANDIDATES = ['humor_flavor_id', 'humor_flavor', 'flavor_id', 'flavor', 'chain_id', 'prompt_chain_id']
-export const STEP_PROMPT_COLUMN_CANDIDATES = ['prompt', 'step_prompt', 'instruction', 'text', 'content', 'template']
+export const STEP_PROMPT_COLUMN_CANDIDATES = ['llm_user_prompt', 'llm_system_prompt', 'description', 'prompt', 'step_prompt', 'instruction', 'text', 'content', 'template']
 export const CAPTION_FLAVOR_COLUMN_CANDIDATES = ['humor_flavor_id', 'humor_flavor', 'flavor_id', 'flavor', 'prompt_chain']
 
 interface TableResolution {
@@ -30,6 +30,21 @@ function relationMissing(error: unknown) {
     : ''
 
   return /relation .* does not exist|table .* does not exist|could not find the table/i.test(message)
+}
+
+function columnMissing(error: unknown) {
+  if (!error || typeof error !== 'object') return false
+
+  const code = 'code' in error && typeof (error as { code?: unknown }).code === 'string'
+    ? ((error as { code: string }).code)
+    : ''
+  if (code === '42703') return true
+
+  const message = 'message' in error && typeof (error as { message?: unknown }).message === 'string'
+    ? ((error as { message: string }).message)
+    : ''
+
+  return /column .* does not exist|could not find the column/i.test(message)
 }
 
 function normalizeErrorMessage(error: unknown) {
@@ -65,6 +80,30 @@ export async function resolveFirstExistingTable(
     tableName: null,
     errorMessage: `No table found. Tried: ${tableCandidates.join(', ')}`,
   }
+}
+
+export async function resolveFirstExistingColumn(
+  supabase: SupabaseClient,
+  tableName: string,
+  columnCandidates: string[]
+) {
+  for (const columnName of columnCandidates) {
+    const { error } = await supabase.from(tableName).select(columnName).limit(1)
+
+    if (!error) {
+      return columnName
+    }
+
+    if (columnMissing(error)) {
+      continue
+    }
+
+    if (relationMissing(error)) {
+      return null
+    }
+  }
+
+  return null
 }
 
 export function asCleanString(value: unknown) {

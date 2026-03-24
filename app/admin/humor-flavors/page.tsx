@@ -24,7 +24,9 @@ import {
   pickFlavorDescription,
   pickFlavorName,
   pickIdentifierColumn,
+  pickStepPrompt,
   pickStepOrderValue,
+  resolveFirstExistingColumn,
   resolveFirstExistingTable,
   sortStepsByOrder,
   stringifyJson,
@@ -56,6 +58,22 @@ function findMatchingFlavorId(row: DataRow, selectedFlavorId: string, selectedFl
     const value = asCleanString(row[key])
     if (!value) continue
     if (value === selectedFlavorId || value === selectedFlavorName) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function matchesFlavorSelection(row: DataRow, selectedValue: string, flavorIdColumn: string) {
+  if (!selectedValue) return false
+
+  if (asCleanString(row[flavorIdColumn]) === selectedValue) {
+    return true
+  }
+
+  for (const key of FLAVOR_NAME_COLUMN_CANDIDATES) {
+    if (asCleanString(row[key]) === selectedValue) {
       return true
     }
   }
@@ -108,18 +126,52 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
   const flavorIdColumn = pickIdentifierColumn(flavorRows)
   const stepIdColumn = pickIdentifierColumn(stepRows)
-  const stepFlavorColumn = pickFirstExistingColumn(stepRows, STEP_FLAVOR_COLUMN_CANDIDATES) ?? 'humor_flavor_id'
-  const stepOrderColumn = pickFirstExistingColumn(stepRows, STEP_ORDER_COLUMN_CANDIDATES) ?? 'step_order'
-  const stepPromptColumn = pickFirstExistingColumn(stepRows, STEP_PROMPT_COLUMN_CANDIDATES) ?? 'prompt'
-  const flavorNameColumn = pickFirstExistingColumn(flavorRows, FLAVOR_NAME_COLUMN_CANDIDATES) ?? 'slug'
-  const flavorDescriptionColumn = pickFirstExistingColumn(flavorRows, FLAVOR_DESCRIPTION_COLUMN_CANDIDATES) ?? 'description'
+  const [
+    stepFlavorColumn,
+    stepOrderColumn,
+    stepPromptColumn,
+    flavorNameColumn,
+    flavorDescriptionColumn,
+  ] = await Promise.all([
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_FLAVOR_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return 'humor_flavor_id'
+      return (await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_FLAVOR_COLUMN_CANDIDATES)) ?? 'humor_flavor_id'
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_ORDER_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return 'step_order'
+      return (await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_ORDER_COLUMN_CANDIDATES)) ?? 'step_order'
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(stepRows, STEP_PROMPT_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!stepTableResolution.tableName) return null
+      return await resolveFirstExistingColumn(supabase, stepTableResolution.tableName, STEP_PROMPT_COLUMN_CANDIDATES)
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(flavorRows, FLAVOR_NAME_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!flavorTableResolution.tableName) return 'slug'
+      return (await resolveFirstExistingColumn(supabase, flavorTableResolution.tableName, FLAVOR_NAME_COLUMN_CANDIDATES)) ?? 'slug'
+    })(),
+    (async () => {
+      const fromRows = pickFirstExistingColumn(flavorRows, FLAVOR_DESCRIPTION_COLUMN_CANDIDATES)
+      if (fromRows) return fromRows
+      if (!flavorTableResolution.tableName) return 'description'
+      return (await resolveFirstExistingColumn(supabase, flavorTableResolution.tableName, FLAVOR_DESCRIPTION_COLUMN_CANDIDATES)) ?? 'description'
+    })(),
+  ])
 
   const selectedFlavorFromQuery = asCleanString(params.flavor)
   const firstFlavorId = flavorRows.length > 0 ? asCleanString(flavorRows[0][flavorIdColumn]) : ''
-  const selectedFlavorId = selectedFlavorFromQuery || firstFlavorId
 
-  const selectedFlavor =
-    flavorRows.find((row) => asCleanString(row[flavorIdColumn]) === selectedFlavorId) ?? null
+  const selectedFlavor = selectedFlavorFromQuery
+    ? flavorRows.find((row) => matchesFlavorSelection(row, selectedFlavorFromQuery, flavorIdColumn)) ?? null
+    : (flavorRows[0] ?? null)
+  const selectedFlavorId = selectedFlavor ? asCleanString(selectedFlavor[flavorIdColumn]) : firstFlavorId
   const selectedFlavorName = selectedFlavor ? pickFlavorName(selectedFlavor) : ''
 
   const selectedFlavorSteps = selectedFlavor
@@ -140,11 +192,14 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
     [flavorDescriptionColumn]: 'Step-based prompt chain for short, sharp captions.',
   })
 
-  const defaultStepPayload = stringifyJson({
+  const defaultStepPayloadObject: Record<string, unknown> = {
     [stepFlavorColumn]: selectedFlavorId || '<replace-with-flavor-id>',
     [stepOrderColumn]: maxStepOrder + 1,
-    [stepPromptColumn]: 'Describe the image in neutral language before adding humor.',
-  })
+  }
+  if (stepPromptColumn) {
+    defaultStepPayloadObject[stepPromptColumn] = 'Describe the image in neutral language before adding humor.'
+  }
+  const defaultStepPayload = stringifyJson(defaultStepPayloadObject)
 
   const captions = (captionRowsResult.data ?? []) as DataRow[]
   const captionFlavorColumn = pickFirstExistingColumn(captions, CAPTION_FLAVOR_COLUMN_CANDIDATES)
@@ -332,7 +387,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             </p>
             <p className="mt-1 text-xs text-slate-400">
               Step table: {stepTableResolution.tableName ?? HUMOR_FLAVOR_STEP_TABLE_CANDIDATES[0]} | id column: {stepIdColumn} |
-              flavor column: {stepFlavorColumn} | order column: {stepOrderColumn} | description column: {flavorDescriptionColumn}
+              flavor column: {stepFlavorColumn} | order column: {stepOrderColumn} | step text column: {stepPromptColumn ?? 'not detected'}
             </p>
 
             <form action={createHumorFlavorStepAction} className="mt-4 grid gap-2">
@@ -377,7 +432,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                         <p className="text-xs text-slate-400">
                           step_id: {stepId || 'n/a'} | current order: {orderLabel}
                         </p>
-                        <p className="mt-1 text-sm text-slate-200">{asCleanString(row[stepPromptColumn]) || '(no prompt text)'}</p>
+                        <p className="mt-1 text-sm text-slate-200">{(stepPromptColumn ? asCleanString(row[stepPromptColumn]) : '') || pickStepPrompt(row) || '(no prompt text)'}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <form action={moveHumorFlavorStepAction}>
