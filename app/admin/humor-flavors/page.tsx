@@ -57,13 +57,26 @@ function getCaptionText(row: DataRow) {
 }
 
 function findMatchingFlavorId(row: DataRow, selectedFlavorId: string, selectedFlavorName: string) {
+  const normalizedSelectedId = selectedFlavorId.trim()
+  const selectedIdNumber = Number(normalizedSelectedId)
+  const hasNumericSelectedId = normalizedSelectedId !== '' && Number.isFinite(selectedIdNumber)
+
   for (const key of STEP_FLAVOR_COLUMN_CANDIDATES) {
     if (!(key in row)) continue
 
-    const value = asCleanString(row[key])
+    const rawValue = row[key]
+    const value = asCleanString(rawValue)
     if (!value) continue
-    if (value === selectedFlavorId || value === selectedFlavorName) {
+
+    if (value === normalizedSelectedId || value === selectedFlavorName) {
       return true
+    }
+
+    if (hasNumericSelectedId) {
+      const rowNumber = typeof rawValue === 'number' ? rawValue : Number(value)
+      if (Number.isFinite(rowNumber) && rowNumber === selectedIdNumber) {
+        return true
+      }
     }
   }
 
