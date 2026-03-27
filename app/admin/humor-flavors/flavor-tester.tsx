@@ -34,6 +34,8 @@ interface TestRunResult {
   captions: string[]
 }
 
+const MIX_MODE_VALUE = ''
+
 function getCaptionText(record: CaptionRecord, index: number) {
   const candidates = ['content', 'caption', 'text', 'captionText', 'title']
   for (const field of candidates) {
@@ -59,15 +61,19 @@ async function parseErrorBody(response: Response) {
   }
 }
 
-async function callGenerateCaptions(token: string, imageId: string, flavor: FlavorOption) {
-  const payloadCandidates: Record<string, unknown>[] = [
-    { imageId, humorFlavor: flavor.name },
-    { imageId, humorFlavor: flavor.id },
-    { imageId, humorFlavorId: flavor.id },
-    { imageId, flavor: flavor.name },
-    { imageId, flavorId: flavor.id },
-    { imageId, humorFlavor: flavor.id, humorFlavorName: flavor.name },
-  ]
+async function callGenerateCaptions(token: string, imageId: string, flavor: FlavorOption | null) {
+  const payloadCandidates: Record<string, unknown>[] = [{ imageId }]
+
+  if (flavor) {
+    payloadCandidates.push(
+      { imageId, humorFlavor: flavor.name },
+      { imageId, humorFlavor: flavor.id },
+      { imageId, humorFlavorId: flavor.id },
+      { imageId, flavor: flavor.name },
+      { imageId, flavorId: flavor.id },
+      { imageId, humorFlavor: flavor.id, humorFlavorName: flavor.name }
+    )
+  }
 
   const seen = new Set<string>()
   const errors: string[] = []
@@ -205,7 +211,7 @@ async function tagRecentCaptionsForFlavor(
 export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorColumn }: TesterProps) {
   const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
-  const [selectedFlavorId, setSelectedFlavorId] = useState(defaultFlavorId)
+  const [selectedFlavorId, setSelectedFlavorId] = useState(defaultFlavorId || MIX_MODE_VALUE)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>(() => images.slice(0, 3).map((image) => image.id))
   const [isRunning, setIsRunning] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
@@ -225,11 +231,6 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
   }
 
   const runTestSet = async () => {
-    if (!activeFlavor) {
-      setStatusMessage('Choose a humor flavor.')
-      return
-    }
-
     if (selectedImageIds.length === 0) {
       setStatusMessage('Select at least one test image.')
       return
@@ -261,7 +262,7 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
         const captions = normalizeCaptionList(response)
         let resultMessage = captions.length > 0 ? `Generated ${captions.length} caption(s).` : 'No captions returned.'
 
-        if (captionFlavorColumn && userId) {
+        if (captionFlavorColumn && userId && activeFlavor) {
           try {
             const taggedCount = await tagRecentCaptionsForFlavor(
               supabase,
@@ -281,6 +282,8 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
             const tagMessage = tagError instanceof Error ? tagError.message : 'Caption tagging failed.'
             resultMessage += ` ${tagMessage}`
           }
+        } else if (!activeFlavor) {
+          resultMessage += ' Flavor tagging skipped (mix mode).'
         } else {
           resultMessage += ' Flavor tagging skipped (missing caption flavor column or user id).'
         }
@@ -327,6 +330,7 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
             onChange={(event) => setSelectedFlavorId(event.target.value)}
             className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none"
           >
+            <option value={MIX_MODE_VALUE}>Use Humor Mix (no explicit flavor)</option>
             {flavors.map((flavor) => (
               <option key={flavor.id} value={flavor.id}>
                 {flavor.name}
