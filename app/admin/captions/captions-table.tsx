@@ -42,7 +42,7 @@ export function CaptionsTable({ captions }: CaptionsTableProps) {
   }, [captions, query])
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-300">{captions.length} captions loaded</p>
@@ -50,16 +50,16 @@ export function CaptionsTable({ captions }: CaptionsTableProps) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search captions, profile IDs, image IDs..."
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none sm:w-96"
+            className="w-full max-w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none sm:w-96"
           />
         </div>
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid min-w-0 gap-3">
         {filtered.map((caption) => (
-          <article key={caption.id} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-            <div className="flex flex-col gap-4 sm:flex-row">
-              <div className="sm:w-44 sm:flex-none">
+          <article key={caption.id} className="w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[11rem_minmax(0,1fr)]">
+              <div className="w-full lg:w-44 lg:flex-none">
                 {caption.imageUrl ? (
                   <Image
                     src={caption.imageUrl}
@@ -67,7 +67,7 @@ export function CaptionsTable({ captions }: CaptionsTableProps) {
                     width={320}
                     height={180}
                     unoptimized
-                    className="h-28 w-full rounded-xl border border-slate-700 object-cover sm:h-32"
+                    className="h-28 w-full max-w-full rounded-xl border border-slate-700 object-cover sm:h-32"
                   />
                 ) : (
                   <div className="flex h-28 w-full items-center justify-center rounded-xl border border-slate-700 text-xs text-slate-500 sm:h-32">
@@ -88,7 +88,7 @@ export function CaptionsTable({ captions }: CaptionsTableProps) {
                   <span className="text-xs text-slate-400">{formatDate(caption.createdAt)}</span>
                 </div>
 
-                <p className="mt-2 text-sm text-slate-100">{caption.content || '(empty caption content)'}</p>
+                <p className="mt-2 break-words text-sm text-slate-100">{caption.content || '(empty caption content)'}</p>
 
                 <div className="mt-3 grid gap-1 text-xs text-slate-400">
                   <p className="truncate" title={caption.id}>

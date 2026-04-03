@@ -50,9 +50,9 @@ export default async function AdminCaptionsPage() {
 
   return (
     <div className="space-y-5">
-      <section>
-        <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">Captions</p>
-        <h2 className="mt-2 text-2xl font-semibold">Read-Only Caption Feed</h2>
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+        <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/80">Captions</p>
+        <h2 className="mt-2 text-xl font-semibold">Read-Only Caption Feed</h2>
         <p className="mt-2 text-sm text-slate-300">
           Review caption text, visibility, owners, and image associations.
         </p>
