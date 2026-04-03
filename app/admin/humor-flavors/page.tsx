@@ -352,10 +352,10 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
       {bannerStatus && bannerMessage && (
         <section
-          className={`rounded-xl border px-4 py-3 text-sm ${
+          className={`admin-banner whitespace-pre-wrap break-words rounded-xl border px-4 py-3 text-sm ${
             bannerStatus === 'success'
-              ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
-              : 'border-rose-400/40 bg-rose-500/10 text-rose-100'
+              ? 'admin-banner-success border-emerald-400/40 bg-emerald-500/10 text-emerald-100'
+              : 'admin-banner-error border-rose-400/40 bg-rose-500/10 text-rose-100'
           }`}
         >
           {bannerMessage}
@@ -431,7 +431,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               <div className="flex flex-wrap gap-2">
                 <button
                   type="submit"
-                  className="rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
+                  className="admin-accent-btn rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
                 >
                   Update Selected Flavor
                 </button>
@@ -443,7 +443,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               <input type="hidden" name="id_column" value={flavorIdColumn} />
               <button
                 type="submit"
-                className="rounded-lg border border-rose-500/60 px-3 py-2 text-xs text-rose-100 transition hover:bg-rose-500/20"
+                className="admin-danger-btn rounded-lg border border-rose-500/60 px-3 py-2 text-xs text-rose-100 transition hover:bg-rose-500/20"
               >
                 Delete Selected Flavor
               </button>
@@ -523,7 +523,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                           <input type="hidden" name="direction" value="up" />
                           <button
                             type="submit"
-                            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
+                            className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
                           >
                             Move Up
                           </button>
@@ -537,7 +537,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                           <input type="hidden" name="direction" value="down" />
                           <button
                             type="submit"
-                            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
+                            className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
                           >
                             Move Down
                           </button>
@@ -557,7 +557,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                           />
                           <button
                             type="submit"
-                            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
+                            className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
                           >
                             Move To
                           </button>
@@ -581,7 +581,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="submit"
-                          className="rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
+                          className="admin-accent-btn rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
                         >
                           Update Step
                         </button>
@@ -594,7 +594,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                       <input type="hidden" name="id_column" value={stepIdColumn} />
                       <button
                         type="submit"
-                        className="rounded-lg border border-rose-500/60 px-3 py-2 text-xs text-rose-100 transition hover:bg-rose-500/20"
+                        className="admin-danger-btn rounded-lg border border-rose-500/60 px-3 py-2 text-xs text-rose-100 transition hover:bg-rose-500/20"
                       >
                         Delete Step
                       </button>

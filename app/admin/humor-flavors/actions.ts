@@ -52,6 +52,27 @@ function parseMaybeJson(raw: string) {
   }
 }
 
+interface SupabaseLikeError {
+  message: string
+  code?: string | null
+  details?: string | null
+  hint?: string | null
+}
+
+function formatSupabaseActionError(error: SupabaseLikeError) {
+  const message = error.message || 'Database operation failed.'
+  const details = typeof error.details === 'string' && error.details.trim() ? error.details.trim() : ''
+  const hint = typeof error.hint === 'string' && error.hint.trim() ? error.hint.trim() : ''
+
+  if (error.code === '23503' && /humor_flavor_steps_humor_flavor_id_fkey/i.test(message)) {
+    const suffix = details ? ` Details: ${details}` : ''
+    return `Invalid humor flavor id. The selected "humor_flavor_id" does not exist in humor_flavors.${suffix}`
+  }
+
+  const extras = [details && `Details: ${details}`, hint && `Hint: ${hint}`].filter(Boolean).join(' ')
+  return extras ? `${message} ${extras}` : message
+}
+
 function withCreateAuditFields(payload: Record<string, unknown>, userId: string) {
   return {
     ...payload,
@@ -339,7 +360,7 @@ export async function createHumorFlavorStepAction(formData: FormData) {
           `${error.message}. Add "${nullColumnMatch[1]}" to your step payload, or create one complete step first so defaults can be reused.`
         )
       }
-      throw new Error(error.message)
+      throw new Error(formatSupabaseActionError(error))
     }
 
     revalidateAdminRoutes()
@@ -371,7 +392,7 @@ export async function updateHumorFlavorStepAction(formData: FormData) {
       .eq(idColumn, parseMaybeJson(stepId))
 
     if (error) {
-      throw new Error(error.message)
+      throw new Error(formatSupabaseActionError(error))
     }
 
     revalidateAdminRoutes()
