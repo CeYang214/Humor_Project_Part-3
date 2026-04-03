@@ -156,22 +156,24 @@ export default async function AdminDashboardPage() {
     .slice(0, 5)
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 p-6">
-        <p className="text-xs uppercase tracking-[0.22em] text-cyan-100/80">Overview</p>
-        <h2 className="mt-2 text-3xl font-semibold">Humor Data Control Center</h2>
-        <p className="mt-3 max-w-3xl text-sm text-slate-300">
-          Snapshot of platform activity across accounts, uploads, captions, and voting behavior.
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+        <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/80">Overview</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-semibold">Humor Data Overview</h2>
+          <Link
+            href="/admin/operations"
+            className="admin-cta-link inline-flex rounded-lg border border-cyan-300/40 px-3 py-1.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+          >
+            Open Data Operations
+          </Link>
+        </div>
+        <p className="mt-2 max-w-3xl text-sm text-slate-300">
+          Snapshot of activity across accounts, uploads, captions, and votes.
         </p>
-        <p className="mt-2 max-w-3xl text-xs text-slate-400">
-          KPI totals use exact database counts; charts below use recent sampled rows for responsiveness.
+        <p className="mt-1 max-w-3xl text-xs text-slate-400">
+          KPI totals use exact counts; charts below use recent sampled rows for responsiveness.
         </p>
-        <Link
-          href="/admin/operations"
-          className="admin-cta-link mt-4 inline-flex rounded-xl border border-cyan-300/40 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
-        >
-          Open Full Data Operations
-        </Link>
         {errors.length > 0 && (
           <div className="mt-4 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             Some data failed to load: {errors.join(' | ')}

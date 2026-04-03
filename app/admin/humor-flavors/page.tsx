@@ -338,9 +338,9 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 p-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-cyan-100/80">Prompt Chains</p>
-        <h2 className="mt-2 text-2xl font-semibold">Humor Flavor Tooling</h2>
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+        <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/80">Prompt Chains</p>
+        <h2 className="mt-2 text-xl font-semibold">Humor Flavor Tooling</h2>
         <p className="mt-2 text-sm text-slate-300">
           Create, edit, delete, and reorder humor flavor prompt-chain steps, then run a caption test set through
           `api.almostcrackd.ai`.
@@ -688,29 +688,27 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
             return (
               <article key={flavorId || JSON.stringify(row)} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-100">{label}</p>
-                    <p className="mt-1 truncate text-xs text-slate-400" title={flavorId}>
-                      id: {flavorId || 'No id value'}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-100">{label}</p>
+                  <p className="mt-1 truncate text-xs text-slate-400" title={flavorId}>
+                    id: {flavorId || 'No id value'}
+                  </p>
+                  {description && (
+                    <p className="mt-1 truncate text-xs text-slate-300" title={description}>
+                      {description}
                     </p>
-                    {description && (
-                      <p className="mt-1 truncate text-xs text-slate-300" title={description}>
-                        {description}
-                      </p>
-                    )}
-                  </div>
-                  <Link
-                    href={`/admin/humor-flavors?flavor=${encodeURIComponent(flavorId)}`}
-                    className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition ${
-                      isSelected
-                        ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
-                        : 'border-slate-700 text-slate-200 hover:border-slate-500'
-                    }`}
-                  >
-                    {isSelected ? 'Selected' : 'Select'}
-                  </Link>
+                  )}
                 </div>
+                <Link
+                  href={`/admin/humor-flavors?flavor=${encodeURIComponent(flavorId)}`}
+                  className={`mt-3 inline-flex w-full items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    isSelected
+                      ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                      : 'border-slate-700 text-slate-200 hover:border-slate-500'
+                  }`}
+                >
+                  {isSelected ? 'Selected Flavor' : 'Select Flavor'}
+                </Link>
               </article>
             )
           })}

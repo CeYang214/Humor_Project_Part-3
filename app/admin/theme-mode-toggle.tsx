@@ -41,9 +41,9 @@ export function ThemeModeToggle() {
   }
 
   return (
-    <div className="mt-6 rounded-xl border border-slate-700/80 bg-slate-900/60 p-3">
-      <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Theme</p>
-      <div className="mt-3 grid grid-cols-3 gap-2">
+    <div className="mt-4 rounded-lg border border-slate-700/80 bg-slate-900/60 p-2.5">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Theme</p>
+      <div className="mt-2 grid grid-cols-3 gap-1.5">
         {(['system', 'light', 'dark'] as ThemeMode[]).map((theme) => {
           const isActive = mode === theme
           return (
@@ -51,7 +51,7 @@ export function ThemeModeToggle() {
               key={theme}
               type="button"
               onClick={() => handleModeChange(theme)}
-              className={`admin-theme-mode-btn rounded-lg border px-2 py-1.5 text-xs capitalize transition ${
+              className={`admin-theme-mode-btn rounded-md border px-2 py-1 text-xs capitalize transition ${
                 isActive
                   ? 'admin-theme-mode-btn-active border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
                   : 'border-slate-700 text-slate-300 hover:border-slate-500'

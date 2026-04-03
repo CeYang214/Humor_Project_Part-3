@@ -358,7 +358,7 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
             <p className="text-xs text-slate-400">{selectedImageIds.length} selected</p>
           </div>
 
-          <div className="grid max-h-[60vh] gap-2 overflow-y-auto pr-1">
+          <div className="grid max-h-[40vh] gap-2 overflow-y-auto pr-1 xl:max-h-[52vh]">
             {images.map((image) => {
               const isChecked = selectedImageIds.includes(image.id)
 
@@ -430,7 +430,7 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
             </div>
           )}
 
-          <div className="max-h-[65vh] space-y-3 overflow-y-auto pr-1">
+          <div className="max-h-[42vh] space-y-3 overflow-y-auto pr-1 xl:max-h-[54vh]">
             {results.length === 0 && <p className="text-sm text-slate-400">No test runs yet.</p>}
             {results.map((result) => (
               <article key={result.imageId} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
