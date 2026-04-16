@@ -56,11 +56,14 @@ npm install
 npm run dev
 ```
 
-## Submission Checklist
+## Submissions
 
-1. Push this folder as a **new GitHub repository** for the admin app.
-2. Create a **new Vercel project** from that repo.
-3. In Vercel, set **Deployment Protection** to **Off**.
-4. Submit commit-specific Vercel URLs for:
-   - caption creation + rating app
-   - admin area app
+- Caption creation + rating app  
+  Commit: `fb54787500d25c06e8ce95fd44b4db50f868d45c`  
+  URL: https://vercel.com/cecilia-yangs-projects/humor-project-part-2/8V5nWaoQRuEa52EiifF36Ux2g1qG
+- Admin area app  
+  Commit: `0d7458765550f433d387bbd94ef1d6f8fbcfa290`  
+  URL: https://vercel.com/cecilia-yangs-projects/humor-project-part-3/3rVCNYnRS8NwE269Fgz3h6dk1nx7
+- Prompt chain tool app  
+  Commit: `d1d9d26a8c79224112d2d6d3129330e4af2af0d8`  
+  URL: https://vercel.com/cecilia-yangs-projects/humor-project-hello-world/8zrt6HyZaMa8CFAgarhikJT1b5GK

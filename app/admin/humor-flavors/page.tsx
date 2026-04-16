@@ -5,6 +5,7 @@ import {
   createHumorFlavorStepAction,
   deleteHumorFlavorAction,
   deleteHumorFlavorStepAction,
+  duplicateHumorFlavorAction,
   moveHumorFlavorStepAction,
   updateHumorFlavorAction,
   updateHumorFlavorStepAction,
@@ -436,6 +437,25 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                   Update Selected Flavor
                 </button>
               </div>
+            </form>
+
+            <form action={duplicateHumorFlavorAction} className="mt-3 grid gap-2">
+              <input type="hidden" name="source_flavor_id" value={selectedFlavorId} />
+              <input type="hidden" name="source_id_column" value={flavorIdColumn} />
+              <label className="grid gap-1 text-xs text-slate-300">
+                Duplicate flavor as (unique name)
+                <input
+                  name="new_flavor_name"
+                  defaultValue={`${selectedFlavorName} Copy`}
+                  className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+                />
+              </label>
+              <button
+                type="submit"
+                className="admin-accent-btn w-fit rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
+              >
+                Duplicate Flavor + Steps
+              </button>
             </form>
 
             <form action={deleteHumorFlavorAction} className="mt-2">

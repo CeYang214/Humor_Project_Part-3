@@ -18,13 +18,20 @@ type CaptionRow = {
 }
 
 type VoteRow = {
-  caption_id: string | null
-  vote_value: number | null
+  caption_id?: unknown
+  vote_value?: unknown
+  profile_id?: unknown
 }
 
 function formatPercent(value: number) {
   if (!Number.isFinite(value)) return '0%'
   return `${Math.round(value)}%`
+}
+
+function asCleanText(value: unknown) {
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return ''
 }
 
 function normalizeDate(value: string | null) {
@@ -60,7 +67,7 @@ export default async function AdminDashboardPage() {
       .select('id, profile_id, image_id, created_datetime_utc, is_public, content')
       .order('created_datetime_utc', { ascending: false })
       .limit(2000),
-    supabase.from('caption_votes').select('caption_id, vote_value').limit(4000),
+    supabase.from('caption_votes').select('*').limit(6000),
   ])
 
   const errors = [
@@ -132,12 +139,41 @@ export default async function AdminDashboardPage() {
     }))
 
   const voteScoreByCaption = new Map<string, number>()
+  const voteCountByCaption = new Map<string, number>()
+  const ratersByCaption = new Map<string, Set<string>>()
+  const ratingsByProfile = new Map<string, number>()
+  let validVoteCount = 0
+  let positiveVoteCount = 0
+
   for (const vote of votes) {
-    if (!vote.caption_id || typeof vote.vote_value !== 'number') continue
-    voteScoreByCaption.set(vote.caption_id, (voteScoreByCaption.get(vote.caption_id) ?? 0) + vote.vote_value)
+    const captionId = asCleanText(vote.caption_id)
+    if (!captionId) continue
+
+    const parsedVote = typeof vote.vote_value === 'number' ? vote.vote_value : Number(vote.vote_value)
+    if (!Number.isFinite(parsedVote)) continue
+
+    validVoteCount += 1
+    if (parsedVote > 0) {
+      positiveVoteCount += 1
+    }
+
+    voteScoreByCaption.set(captionId, (voteScoreByCaption.get(captionId) ?? 0) + parsedVote)
+    voteCountByCaption.set(captionId, (voteCountByCaption.get(captionId) ?? 0) + 1)
+
+    const profileId = asCleanText(vote.profile_id)
+    if (!profileId) continue
+
+    ratingsByProfile.set(profileId, (ratingsByProfile.get(profileId) ?? 0) + 1)
+    const raterSet = ratersByCaption.get(captionId) ?? new Set<string>()
+    raterSet.add(profileId)
+    ratersByCaption.set(captionId, raterSet)
   }
 
   const captionById = new Map(captions.map((caption) => [caption.id, caption]))
+  const ratedCaptionCount = voteCountByCaption.size
+  const uniqueRaterCount = ratingsByProfile.size
+  const averageRatingsPerRatedCaption = ratedCaptionCount > 0 ? validVoteCount / ratedCaptionCount : 0
+  const positiveVotePercent = validVoteCount > 0 ? (positiveVoteCount / validVoteCount) * 100 : 0
 
   const topRatedCaptions = [...voteScoreByCaption.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -150,6 +186,31 @@ export default async function AdminDashboardPage() {
         content: caption?.content?.trim() || '(No caption content)',
       }
     })
+
+  const mostRatedCaptions = [...voteCountByCaption.entries()]
+    .sort((a, b) => {
+      if (a[1] !== b[1]) return b[1] - a[1]
+      return (voteScoreByCaption.get(b[0]) ?? 0) - (voteScoreByCaption.get(a[0]) ?? 0)
+    })
+    .slice(0, 5)
+    .map(([captionId, ratingCount]) => {
+      const score = voteScoreByCaption.get(captionId) ?? 0
+      const averageScore = ratingCount > 0 ? score / ratingCount : 0
+      const caption = captionById.get(captionId)
+
+      return {
+        captionId,
+        ratingCount,
+        uniqueRaters: ratersByCaption.get(captionId)?.size ?? 0,
+        score,
+        averageScore,
+        content: caption?.content?.trim() || '(No caption content)',
+      }
+    })
+
+  const topRaters = [...ratingsByProfile.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
 
   const weekdaySummary = [...weekdayCounts.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -256,6 +317,65 @@ export default async function AdminDashboardPage() {
             ))}
           </div>
         </article>
+      </section>
+
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
+        <h3 className="text-lg font-semibold">Caption Rating Activity</h3>
+        <p className="mt-1 text-sm text-slate-300">
+          Statistics focused on the captions users are rating.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Rated Captions</p>
+            <p className="mt-2 text-2xl font-semibold text-cyan-200">{ratedCaptionCount}</p>
+          </article>
+          <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Unique Raters</p>
+            <p className="mt-2 text-2xl font-semibold text-cyan-200">{uniqueRaterCount}</p>
+          </article>
+          <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Avg Ratings / Caption</p>
+            <p className="mt-2 text-2xl font-semibold text-cyan-200">{averageRatingsPerRatedCaption.toFixed(2)}</p>
+          </article>
+          <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Positive Vote Share</p>
+            <p className="mt-2 text-2xl font-semibold text-cyan-200">{formatPercent(positiveVotePercent)}</p>
+          </article>
+        </div>
+
+        <div className="mt-5 grid gap-5 xl:grid-cols-2">
+          <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+            <h4 className="text-sm font-semibold text-slate-100">Most Rated Captions</h4>
+            <div className="mt-3 space-y-3">
+              {mostRatedCaptions.length === 0 && <p className="text-sm text-slate-400">No ratings yet.</p>}
+              {mostRatedCaptions.map((caption) => (
+                <div key={caption.captionId} className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                  <p className="text-sm text-slate-100">{caption.content}</p>
+                  <p className="mt-2 text-xs text-cyan-200">
+                    {caption.ratingCount} ratings | avg {caption.averageScore.toFixed(2)} | score {caption.score}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-400">{caption.uniqueRaters} unique raters</p>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+            <h4 className="text-sm font-semibold text-slate-100">Most Active Raters</h4>
+            <div className="mt-3 space-y-2">
+              {topRaters.length === 0 && <p className="text-sm text-slate-400">No rater activity yet.</p>}
+              {topRaters.map(([profileId, ratingCount]) => (
+                <div key={profileId} className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                  <p className="truncate text-xs text-slate-300" title={profileId}>
+                    {profileId}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-cyan-200">{ratingCount} ratings</p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
