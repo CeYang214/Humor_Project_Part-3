@@ -184,6 +184,8 @@ export default async function AdminDashboardPage() {
         captionId,
         score,
         content: caption?.content?.trim() || '(No caption content)',
+        imageId: caption?.image_id ?? '',
+        imageUrl: caption?.image_id ? (imageUrlById.get(caption.image_id) ?? '') : '',
       }
     })
 
@@ -205,6 +207,8 @@ export default async function AdminDashboardPage() {
         score,
         averageScore,
         content: caption?.content?.trim() || '(No caption content)',
+        imageId: caption?.image_id ?? '',
+        imageUrl: caption?.image_id ? (imageUrlById.get(caption.image_id) ?? '') : '',
       }
     })
 
@@ -351,7 +355,28 @@ export default async function AdminDashboardPage() {
               {mostRatedCaptions.length === 0 && <p className="text-sm text-slate-400">No ratings yet.</p>}
               {mostRatedCaptions.map((caption) => (
                 <div key={caption.captionId} className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
-                  <p className="text-sm text-slate-100">{caption.content}</p>
+                  <div className="flex items-start gap-3">
+                    {caption.imageUrl ? (
+                      <Image
+                        src={caption.imageUrl}
+                        alt={`Image ${caption.imageId || 'n/a'}`}
+                        width={56}
+                        height={56}
+                        unoptimized
+                        className="h-14 w-14 rounded-lg border border-slate-700 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-slate-700 text-[10px] text-slate-400">
+                        no img
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-slate-100">{caption.content}</p>
+                      <p className="mt-1 truncate text-[11px] text-slate-400" title={caption.imageId || 'n/a'}>
+                        Image No: {caption.imageId || 'n/a'}
+                      </p>
+                    </div>
+                  </div>
                   <p className="mt-2 text-xs text-cyan-200">
                     {caption.ratingCount} ratings | avg {caption.averageScore.toFixed(2)} | score {caption.score}
                   </p>
@@ -418,7 +443,28 @@ export default async function AdminDashboardPage() {
             {topRatedCaptions.length === 0 && <p className="text-sm text-slate-400">No votes yet.</p>}
             {topRatedCaptions.map((caption) => (
               <div key={caption.captionId} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                <p className="text-sm text-slate-100">{caption.content}</p>
+                <div className="flex items-start gap-3">
+                  {caption.imageUrl ? (
+                    <Image
+                      src={caption.imageUrl}
+                      alt={`Image ${caption.imageId || 'n/a'}`}
+                      width={56}
+                      height={56}
+                      unoptimized
+                      className="h-14 w-14 rounded-lg border border-slate-700 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-slate-700 text-[10px] text-slate-400">
+                      no img
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-slate-100">{caption.content}</p>
+                    <p className="mt-1 truncate text-[11px] text-slate-400" title={caption.imageId || 'n/a'}>
+                      Image No: {caption.imageId || 'n/a'}
+                    </p>
+                  </div>
+                </div>
                 <p className="mt-2 text-xs text-cyan-200">Score: {caption.score}</p>
                 <p className="mt-1 truncate text-[11px] text-slate-400" title={caption.captionId}>
                   {caption.captionId}
