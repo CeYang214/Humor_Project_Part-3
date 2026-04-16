@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/admin/users', label: 'Users / Profiles' },
   { href: '/admin/images', label: 'Images' },
   { href: '/admin/captions', label: 'Captions' },
+  { href: '/admin/ratings', label: 'Ratings (All)' },
 ]
 
 export function AdminNav() {

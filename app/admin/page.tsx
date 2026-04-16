@@ -129,7 +129,7 @@ export default async function AdminDashboardPage() {
 
   const imageUrlById = new Map(images.map((image) => [image.id, image.url ?? '']))
 
-  const topImages = [...captionsByImage.entries()]
+  let topImages = [...captionsByImage.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
     .map(([imageId, captionCount]) => ({
@@ -137,6 +137,30 @@ export default async function AdminDashboardPage() {
       captionCount,
       url: imageUrlById.get(imageId) ?? '',
     }))
+
+  const missingTopImageIds = topImages
+    .map((image) => image.imageId)
+    .filter((imageId) => !asCleanText(imageUrlById.get(imageId)))
+
+  if (missingTopImageIds.length > 0) {
+    const { data: missingTopImages, error: missingTopImagesError } = await supabase
+      .from('images')
+      .select('id, url')
+      .in('id', missingTopImageIds)
+      .limit(500)
+
+    if (missingTopImagesError) {
+      errors.push(missingTopImagesError.message)
+    } else {
+      for (const row of (missingTopImages ?? []) as ImageRow[]) {
+        imageUrlById.set(row.id, row.url ?? '')
+      }
+      topImages = topImages.map((image) => ({
+        ...image,
+        url: imageUrlById.get(image.imageId) ?? '',
+      }))
+    }
+  }
 
   const voteScoreByCaption = new Map<string, number>()
   const voteCountByCaption = new Map<string, number>()
