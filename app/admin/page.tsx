@@ -175,28 +175,78 @@ export default async function AdminDashboardPage() {
   const averageRatingsPerRatedCaption = ratedCaptionCount > 0 ? validVoteCount / ratedCaptionCount : 0
   const positiveVotePercent = validVoteCount > 0 ? (positiveVoteCount / validVoteCount) * 100 : 0
 
-  const topRatedCaptions = [...voteScoreByCaption.entries()]
+  const topRatedCaptionIds = [...voteScoreByCaption.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([captionId, score]) => {
-      const caption = captionById.get(captionId)
-      return {
-        captionId,
-        score,
-        content: caption?.content?.trim() || '(No caption content)',
-        imageId: caption?.image_id ?? '',
-        imageUrl: caption?.image_id ? (imageUrlById.get(caption.image_id) ?? '') : '',
-      }
-    })
+    .map(([captionId]) => captionId)
 
-  const mostRatedCaptions = [...voteCountByCaption.entries()]
+  const mostRatedCaptionIds = [...voteCountByCaption.entries()]
     .sort((a, b) => {
       if (a[1] !== b[1]) return b[1] - a[1]
       return (voteScoreByCaption.get(b[0]) ?? 0) - (voteScoreByCaption.get(a[0]) ?? 0)
     })
     .slice(0, 5)
-    .map(([captionId, ratingCount]) => {
+    .map(([captionId]) => captionId)
+
+  const neededRatedCaptionIds = [...new Set([...topRatedCaptionIds, ...mostRatedCaptionIds])]
+  const missingRatedCaptionIds = neededRatedCaptionIds.filter((captionId) => !captionById.has(captionId))
+
+  if (missingRatedCaptionIds.length > 0) {
+    const { data: missingCaptionRows, error: missingCaptionsError } = await supabase
+      .from('captions')
+      .select('id, profile_id, image_id, created_datetime_utc, is_public, content')
+      .in('id', missingRatedCaptionIds)
+      .limit(500)
+
+    if (missingCaptionsError) {
+      errors.push(missingCaptionsError.message)
+    } else {
+      for (const row of (missingCaptionRows ?? []) as CaptionRow[]) {
+        if (!row.id) continue
+        captionById.set(row.id, row)
+      }
+    }
+  }
+
+  const neededRatedImageIds = [...new Set(
+    neededRatedCaptionIds
+      .map((captionId) => captionById.get(captionId)?.image_id ?? null)
+      .filter((value): value is string => Boolean(value))
+  )]
+  const missingRatedImageIds = neededRatedImageIds.filter((imageId) => !asCleanText(imageUrlById.get(imageId)))
+
+  if (missingRatedImageIds.length > 0) {
+    const { data: missingImageRows, error: missingImagesError } = await supabase
+      .from('images')
+      .select('id, url')
+      .in('id', missingRatedImageIds)
+      .limit(500)
+
+    if (missingImagesError) {
+      errors.push(missingImagesError.message)
+    } else {
+      for (const row of (missingImageRows ?? []) as ImageRow[]) {
+        if (!row.id) continue
+        imageUrlById.set(row.id, row.url ?? '')
+      }
+    }
+  }
+
+  const topRatedCaptions = topRatedCaptionIds.map((captionId) => {
+    const caption = captionById.get(captionId)
+    return {
+      captionId,
+      score: voteScoreByCaption.get(captionId) ?? 0,
+      content: caption?.content?.trim() || '(No caption content)',
+      imageId: caption?.image_id ?? '',
+      imageUrl: caption?.image_id ? (imageUrlById.get(caption.image_id) ?? '') : '',
+    }
+  })
+
+  const mostRatedCaptions = mostRatedCaptionIds
+    .map((captionId) => {
       const score = voteScoreByCaption.get(captionId) ?? 0
+      const ratingCount = voteCountByCaption.get(captionId) ?? 0
       const averageScore = ratingCount > 0 ? score / ratingCount : 0
       const caption = captionById.get(captionId)
 
