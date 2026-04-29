@@ -574,7 +574,16 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
       {showSteps && (
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
         <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Humor Flavor Steps</p>
-        <h3 className="mt-1 text-xl font-semibold">Step CRUD + Reordering</h3>
+        <h3 className="mt-1 text-xl font-semibold">Step Builder + Reordering</h3>
+        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-200">Recommended Flow</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-slate-300">
+            <li>Select a flavor in Flavor Directory.</li>
+            <li>Create steps with Guided Step Builder.</li>
+            <li>Reorder steps with Up/Down or Move To.</li>
+            <li>Use Quick Replace for word swaps; use Advanced payload only for full-row edits.</li>
+          </ol>
+        </div>
 
         {selectedFlavor ? (
           <>
@@ -654,11 +663,13 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-xs text-slate-400">
-                          step_id: {stepId || 'n/a'} | current order: {orderLabel}
+                          Step {index + 1} | order: {orderLabel} | step_id: {stepId || 'n/a'}
                         </p>
                         <p className="mt-1 text-sm text-slate-200">{(stepPromptColumn ? asCleanString(row[stepPromptColumn]) : '') || pickStepPrompt(row) || '(no prompt text)'}</p>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid gap-1">
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-400">Reorder</p>
+                        <div className="flex flex-wrap gap-2">
                         <form action={moveHumorFlavorStepAction}>
                           <input type="hidden" name="flavor_id" value={selectedFlavorId} />
                           <input type="hidden" name="step_id" value={stepId} />
@@ -670,7 +681,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                             type="submit"
                             className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
                           >
-                            Move Up
+                            Up
                           </button>
                         </form>
                         <form action={moveHumorFlavorStepAction}>
@@ -684,7 +695,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                             type="submit"
                             className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
                           >
-                            Move Down
+                            Down
                           </button>
                         </form>
                         <form action={moveHumorFlavorStepAction} className="flex items-center gap-1">
@@ -704,9 +715,10 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                             type="submit"
                             className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
                           >
-                            Move To
+                            Move To #
                           </button>
                         </form>
+                      </div>
                       </div>
                     </div>
 
@@ -738,28 +750,31 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                       </form>
                     )}
 
-                    <form action={updateHumorFlavorStepAction} className="mt-3 grid gap-2">
-                      <input type="hidden" name="flavor_id" value={selectedFlavorId} />
-                      <input type="hidden" name="step_id" value={stepId} />
-                      <input type="hidden" name="id_column" value={stepIdColumn} />
-                      <label className="grid gap-1 text-xs text-slate-300">
-                        Update step row (`column: value` per line; JSON also works)
-                        <textarea
-                          name="payload"
-                          rows={8}
-                          defaultValue={stringifyPayloadObject(row)}
-                          className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
-                        />
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="submit"
-                          className="admin-accent-btn rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
-                        >
-                          Update Step
-                        </button>
-                      </div>
-                    </form>
+                    <details className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+                      <summary className="cursor-pointer text-xs font-semibold text-slate-200">Advanced: edit full step payload</summary>
+                      <form action={updateHumorFlavorStepAction} className="mt-2 grid gap-2">
+                        <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+                        <input type="hidden" name="step_id" value={stepId} />
+                        <input type="hidden" name="id_column" value={stepIdColumn} />
+                        <label className="grid gap-1 text-xs text-slate-300">
+                          Update step row (`column: value` per line; JSON also works)
+                          <textarea
+                            name="payload"
+                            rows={8}
+                            defaultValue={stringifyPayloadObject(row)}
+                            className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
+                          />
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="submit"
+                            className="admin-accent-btn rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
+                          >
+                            Update Step
+                          </button>
+                        </div>
+                      </form>
+                    </details>
 
                     <form action={deleteHumorFlavorStepAction} className="mt-2">
                       <input type="hidden" name="flavor_id" value={selectedFlavorId} />
