@@ -322,14 +322,14 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
         Calls `api.almostcrackd.ai` with your selected humor flavor and selected image IDs.
       </p>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-        <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/60 p-4">
           <label className="grid gap-1 text-sm">
             <span className="text-slate-300">Humor flavor</span>
             <select
               value={selectedFlavorId}
               onChange={(event) => setSelectedFlavorId(event.target.value)}
-              className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none"
+              className="w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none"
             >
               <option value={MIX_MODE_VALUE}>Use Humor Mix (no explicit flavor)</option>
               {flavors.map((flavor) => (
@@ -404,7 +404,7 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
           </div>
         </div>
 
-        <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+        <div className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/60 p-4">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"

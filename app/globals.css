@@ -195,6 +195,24 @@ html[data-theme='light'] .admin-theme .admin-danger-btn:hover {
   background-color: rgba(244, 63, 94, 0.14) !important;
 }
 
+html[data-theme='light'] .admin-theme .admin-select-flavor-btn {
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html[data-theme='light'] .admin-theme .admin-select-flavor-btn:hover {
+  border-color: #475569 !important;
+  background-color: rgba(241, 245, 249, 0.95) !important;
+}
+
+html[data-theme='light'] .admin-theme .admin-select-flavor-btn-active {
+  color: #0f172a !important;
+  border-color: rgba(14, 116, 144, 0.7) !important;
+  background-color: rgba(125, 211, 252, 0.55) !important;
+  box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.45) !important;
+}
+
 @media (prefers-color-scheme: light) {
   html:not([data-theme]) .admin-theme {
     background: radial-gradient(circle at top left, #dbeafe 0%, #f8fafc 55%, #eef2ff 100%) !important;
@@ -351,5 +369,23 @@ html[data-theme='light'] .admin-theme .admin-danger-btn:hover {
 
   html:not([data-theme]) .admin-theme .admin-danger-btn:hover {
     background-color: rgba(244, 63, 94, 0.14) !important;
+  }
+
+  html:not([data-theme]) .admin-theme .admin-select-flavor-btn {
+    color: #0f172a !important;
+    border-color: #94a3b8 !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  html:not([data-theme]) .admin-theme .admin-select-flavor-btn:hover {
+    border-color: #475569 !important;
+    background-color: rgba(241, 245, 249, 0.95) !important;
+  }
+
+  html:not([data-theme]) .admin-theme .admin-select-flavor-btn-active {
+    color: #0f172a !important;
+    border-color: rgba(14, 116, 144, 0.7) !important;
+    background-color: rgba(125, 211, 252, 0.55) !important;
+    box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.45) !important;
   }
 }

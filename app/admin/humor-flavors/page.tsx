@@ -415,8 +415,8 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         </section>
       )}
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-        <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/80">View Filter</p>
+      <section className="rounded-2xl border border-slate-700 bg-slate-950/80 p-4">
+        <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">View Filter</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {viewOptions.map((option) => {
             const isActive = option.key === activeView
@@ -426,8 +426,8 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                 href={buildHumorFlavorAdminHref(option.key, selectedFlavorId || undefined)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   isActive
-                    ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
-                    : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                    ? 'border-cyan-300 bg-cyan-600 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
+                    : 'border-slate-600 bg-slate-900 text-slate-200 hover:border-slate-400 hover:bg-slate-800'
                 }`}
               >
                 {option.label}
@@ -460,7 +460,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         </div>
 
         <section className="mt-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-4">
-          <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Guided Flavor Builder</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-100">Guided Flavor Builder</p>
           <h4 className="mt-1 text-base font-semibold text-slate-100">Only Change Name + Description</h4>
           <p className="mt-1 text-xs text-slate-300">
             The row format is handled for you. Fill these fields to create a flavor without editing payload syntax.
@@ -503,7 +503,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             </p>
 
             <section className="mt-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3">
-              <p className="text-xs text-cyan-100">Quick Update</p>
+              <p className="text-xs text-slate-100">Quick Update</p>
               <GuidedFlavorUpdateForm
                 action={updateHumorFlavorAction}
                 flavorId={selectedFlavorId}
@@ -590,7 +590,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             </p>
 
             <section className="mt-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Guided Step Builder</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-100">Guided Step Builder</p>
               <h4 className="mt-1 text-base font-semibold text-slate-100">Only Change Specific Words</h4>
               <p className="mt-1 text-xs text-slate-300">
                 Use this form if you want the format provided automatically. You only edit a few words and the step payload is generated.
@@ -880,9 +880,9 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                 </div>
                 <Link
                   href={buildHumorFlavorAdminHref(activeView, flavorId)}
-                  className={`mt-3 inline-flex w-full items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                  className={`admin-select-flavor-btn mt-3 inline-flex w-full items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                     isSelected
-                      ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                      ? 'admin-select-flavor-btn-active border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
                       : 'border-slate-700 text-slate-200 hover:border-slate-500'
                   }`}
                 >
