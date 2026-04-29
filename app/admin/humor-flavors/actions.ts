@@ -671,6 +671,43 @@ export async function replaceHumorFlavorStepPromptWordAction(formData: FormData)
   }
 }
 
+export async function updateHumorFlavorStepPromptTextAction(formData: FormData) {
+  const flavorId = normalizeText(formData.get('flavor_id'))
+  const stepId = normalizeText(formData.get('step_id'))
+  const idColumn = normalizeText(formData.get('id_column')) || 'id'
+  const promptColumn = normalizeText(formData.get('prompt_column'))
+  const promptText = normalizeText(formData.get('prompt_text'))
+
+  try {
+    if (!stepId) {
+      throw new Error('Step id is required.')
+    }
+    if (!promptColumn) {
+      throw new Error('Prompt column is required for prompt editing.')
+    }
+    if (!promptText) {
+      throw new Error('Prompt text is required.')
+    }
+
+    const { supabase, user, tableName } = await resolveStepTableOrThrow()
+    const { error: updateError } = await supabase
+      .from(tableName)
+      .update(withUpdateAuditFields({ [promptColumn]: promptText }, user.id))
+      .eq(idColumn, parseMaybeJson(stepId))
+
+    if (updateError) {
+      throw new Error(formatSupabaseActionError(updateError))
+    }
+
+    revalidateAdminRoutes()
+    redirect(getMessagePath('success', 'Step prompt text updated.', flavorId))
+  } catch (error) {
+    if (isRedirectException(error)) throw error
+    const message = error instanceof Error ? error.message : 'Failed to update step prompt text.'
+    redirect(getMessagePath('error', message, flavorId))
+  }
+}
+
 export async function updateHumorFlavorStepAction(formData: FormData) {
   const flavorId = normalizeText(formData.get('flavor_id'))
   const stepId = normalizeText(formData.get('step_id'))

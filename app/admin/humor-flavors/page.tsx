@@ -8,6 +8,7 @@ import {
   duplicateHumorFlavorAction,
   moveHumorFlavorStepAction,
   replaceHumorFlavorStepPromptWordAction,
+  updateHumorFlavorStepPromptTextAction,
   updateHumorFlavorAction,
   updateHumorFlavorStepAction,
 } from '@/app/admin/humor-flavors/actions'
@@ -58,6 +59,7 @@ interface HumorFlavorsPageProps {
     message?: string
     flavor?: string
     view?: string
+    flavor_q?: string
   }>
 }
 
@@ -67,13 +69,16 @@ function normalizeHumorFlavorAdminView(value: string): HumorFlavorAdminView {
   return validViews.includes(trimmed as HumorFlavorAdminView) ? (trimmed as HumorFlavorAdminView) : 'all'
 }
 
-function buildHumorFlavorAdminHref(view: HumorFlavorAdminView, flavorId?: string) {
+function buildHumorFlavorAdminHref(view: HumorFlavorAdminView, flavorId?: string, flavorQuery?: string) {
   const params = new URLSearchParams()
   if (view !== 'all') {
     params.set('view', view)
   }
   if (flavorId) {
     params.set('flavor', flavorId)
+  }
+  if (flavorQuery && flavorQuery.trim()) {
+    params.set('flavor_q', flavorQuery.trim())
   }
   const query = params.toString()
   return query ? `/admin/humor-flavors?${query}` : '/admin/humor-flavors'
@@ -159,6 +164,40 @@ function getFlavorSortTime(row: DataRow) {
   return Number.NaN
 }
 
+async function loadAllTestImages(
+  supabase: Awaited<ReturnType<typeof requireSuperadminOrMatrixAdmin>>['supabase']
+) {
+  const pageSize = 500
+  const maxPages = 20
+  const collected: DataRow[] = []
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const from = page * pageSize
+    const to = from + pageSize - 1
+    const { data, error } = await supabase
+      .from('images')
+      .select('id, url')
+      .range(from, to)
+
+    if (error) {
+      return { data: collected, error }
+    }
+
+    const chunk = (data ?? []) as DataRow[]
+    if (chunk.length === 0) {
+      break
+    }
+
+    collected.push(...chunk)
+
+    if (chunk.length < pageSize) {
+      break
+    }
+  }
+
+  return { data: collected, error: null }
+}
+
 export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavorsPageProps) {
   const { supabase } = await requireSuperadminOrMatrixAdmin()
   const params = await searchParams
@@ -174,7 +213,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
     ? await supabase.from(stepTableResolution.tableName).select('*').limit(800)
     : { data: [], error: null }
 
-  const imageRowsResult = await supabase.from('images').select('id, url').limit(60)
+  const imageRowsResult = await loadAllTestImages(supabase)
 
   let captionRowsResult = await supabase
     .from('captions')
@@ -366,6 +405,8 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
   const bannerStatus = params.status === 'success' ? 'success' : params.status === 'error' ? 'error' : null
   const bannerMessage = asCleanString(params.message)
+  const flavorSearchRaw = asCleanString(params.flavor_q)
+  const flavorSearchLower = flavorSearchRaw.toLowerCase()
   const activeView = normalizeHumorFlavorAdminView(asCleanString(params.view))
   const showAll = activeView === 'all'
   const showFlavors = showAll || activeView === 'flavors'
@@ -423,7 +464,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             return (
               <Link
                 key={option.key}
-                href={buildHumorFlavorAdminHref(option.key, selectedFlavorId || undefined)}
+                href={buildHumorFlavorAdminHref(option.key, selectedFlavorId || undefined, flavorSearchRaw)}
                 className={`admin-view-filter-btn rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   isActive
                     ? 'admin-view-filter-btn-active border-cyan-300 bg-cyan-600 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
@@ -587,9 +628,12 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
         {selectedFlavor ? (
           <>
-            <p className="mt-1 text-sm text-slate-300">
-              Selected flavor: <span className="font-semibold text-slate-100">{selectedFlavorName}</span>
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-300">
+              <span>Selected flavor:</span>
+              <span className="admin-step-selected-flavor inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold">
+                {selectedFlavorName}
+              </span>
+            </div>
             <p className="mt-1 text-xs text-slate-400">
               Step table: {stepTableResolution.tableName ?? HUMOR_FLAVOR_STEP_TABLE_CANDIDATES[0]} | id column: {stepIdColumn} |
               flavor column: {stepFlavorColumn} | order column: {stepOrderColumn} | step text column: {stepPromptColumn ?? 'not detected'}
@@ -704,18 +748,21 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                           <input type="hidden" name="id_column" value={stepIdColumn} />
                           <input type="hidden" name="flavor_column" value={stepFlavorColumn} />
                           <input type="hidden" name="order_column" value={stepOrderColumn} />
+                          <span className="text-xs text-slate-300">Move To</span>
                           <input
                             type="number"
                             name="target_position"
                             min={1}
                             defaultValue={index + 1}
-                            className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+                            placeholder="#"
+                            aria-label="Target position number"
+                            className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
                           />
                           <button
                             type="submit"
                             className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
                           >
-                            Move To #
+                            Apply
                           </button>
                         </form>
                       </div>
@@ -723,31 +770,57 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                     </div>
 
                     {stepPromptColumn && (
-                      <form action={replaceHumorFlavorStepPromptWordAction} className="mt-3 grid gap-2 rounded-lg border border-slate-800 bg-slate-900/70 p-3">
-                        <input type="hidden" name="flavor_id" value={selectedFlavorId} />
-                        <input type="hidden" name="step_id" value={stepId} />
-                        <input type="hidden" name="id_column" value={stepIdColumn} />
-                        <input type="hidden" name="prompt_column" value={stepPromptColumn} />
-                        <p className="text-xs text-slate-300">Quick edit: replace one specific word in this step prompt.</p>
-                        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                          <input
-                            name="from_word"
-                            placeholder="word to replace"
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+                      <section className="mt-3 grid gap-2 rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                        <p className="text-xs text-slate-300">Edit prompt text directly (recommended).</p>
+                        <form action={updateHumorFlavorStepPromptTextAction} className="grid gap-2">
+                          <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+                          <input type="hidden" name="step_id" value={stepId} />
+                          <input type="hidden" name="id_column" value={stepIdColumn} />
+                          <input type="hidden" name="prompt_column" value={stepPromptColumn} />
+                          <textarea
+                            name="prompt_text"
+                            rows={4}
+                            defaultValue={asCleanString(row[stepPromptColumn]) || pickStepPrompt(row)}
+                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100"
                           />
-                          <input
-                            name="to_word"
-                            placeholder="new word"
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
-                          />
-                          <button
-                            type="submit"
-                            className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
-                          >
-                            Replace Word
-                          </button>
-                        </div>
-                      </form>
+                          <div>
+                            <button
+                              type="submit"
+                              className="admin-accent-btn rounded-lg border border-cyan-500/60 px-3 py-1.5 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
+                            >
+                              Save Prompt Text
+                            </button>
+                          </div>
+                        </form>
+
+                        <details className="rounded-lg border border-slate-700 bg-slate-900/60 p-2">
+                          <summary className="cursor-pointer text-xs font-semibold text-slate-200">Advanced: replace one specific word</summary>
+                          <form action={replaceHumorFlavorStepPromptWordAction} className="mt-2 grid gap-2">
+                            <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+                            <input type="hidden" name="step_id" value={stepId} />
+                            <input type="hidden" name="id_column" value={stepIdColumn} />
+                            <input type="hidden" name="prompt_column" value={stepPromptColumn} />
+                            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                              <input
+                                name="from_word"
+                                placeholder="word to replace"
+                                className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+                              />
+                              <input
+                                name="to_word"
+                                placeholder="new word"
+                                className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+                              />
+                              <button
+                                type="submit"
+                                className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
+                              >
+                                Replace Word
+                              </button>
+                            </div>
+                          </form>
+                        </details>
+                      </section>
                     )}
 
                     <details className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
@@ -867,45 +940,90 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         <h3 className="mt-1 text-xl font-semibold">Pick Flavor To Manage</h3>
         <p className="mt-1 text-sm text-slate-300">Newest flavors are listed first.</p>
 
-        <div className="mt-4 space-y-2">
-          {flavorRows.length === 0 && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm text-slate-400">
-              No flavor rows found.
-            </div>
+        <form method="get" className="mt-3 flex flex-wrap items-end gap-2">
+          {activeView !== 'all' && <input type="hidden" name="view" value={activeView} />}
+          {selectedFlavorId && <input type="hidden" name="flavor" value={selectedFlavorId} />}
+          <label className="grid gap-1 text-xs text-slate-300">
+            Search flavors
+            <input
+              name="flavor_q"
+              defaultValue={flavorSearchRaw}
+              placeholder="Search by name, id, or description..."
+              className="w-72 max-w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+            />
+          </label>
+          <button
+            type="submit"
+            className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 transition hover:border-slate-500"
+          >
+            Search
+          </button>
+          {flavorSearchRaw && (
+            <Link
+              href={buildHumorFlavorAdminHref(activeView, selectedFlavorId || undefined)}
+              className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 transition hover:border-slate-500"
+            >
+              Clear
+            </Link>
           )}
+        </form>
 
-          {flavorRows.map((row) => {
-            const flavorId = asCleanString(row[flavorIdColumn])
-            const isSelected = flavorId === selectedFlavorId
-            const label = pickFlavorName(row)
-            const description = pickFlavorDescription(row)
+        <div className="mt-4 space-y-2">
+          {(() => {
+            const filteredFlavorRows = flavorSearchLower
+              ? flavorRows.filter((row) => {
+                  const flavorId = asCleanString(row[flavorIdColumn]).toLowerCase()
+                  const label = pickFlavorName(row).toLowerCase()
+                  const description = pickFlavorDescription(row).toLowerCase()
+                  return (
+                    flavorId.includes(flavorSearchLower)
+                    || label.includes(flavorSearchLower)
+                    || description.includes(flavorSearchLower)
+                  )
+                })
+              : flavorRows
 
-            return (
-              <article key={flavorId || JSON.stringify(row)} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-100">{label}</p>
-                  <p className="mt-1 truncate text-xs text-slate-400" title={flavorId}>
-                    id: {flavorId || 'No id value'}
-                  </p>
-                  {description && (
-                    <p className="mt-1 truncate text-xs text-slate-300" title={description}>
-                      {description}
-                    </p>
-                  )}
+            if (filteredFlavorRows.length === 0) {
+              return (
+                <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-5 text-sm text-slate-400">
+                  {flavorSearchRaw ? 'No flavors match your search.' : 'No flavor rows found.'}
                 </div>
-                <Link
-                  href={buildHumorFlavorAdminHref(activeView, flavorId)}
-                  className={`admin-select-flavor-btn mt-3 inline-flex w-full items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                    isSelected
-                      ? 'admin-select-flavor-btn-active border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
-                      : 'border-slate-700 text-slate-200 hover:border-slate-500'
-                  }`}
-                >
-                  {isSelected ? 'Selected Flavor' : 'Select Flavor'}
-                </Link>
-              </article>
-            )
-          })}
+              )
+            }
+
+            return filteredFlavorRows.map((row) => {
+              const flavorId = asCleanString(row[flavorIdColumn])
+              const isSelected = flavorId === selectedFlavorId
+              const label = pickFlavorName(row)
+              const description = pickFlavorDescription(row)
+
+              return (
+                <article key={flavorId || JSON.stringify(row)} className="rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-100">{label}</p>
+                    <p className="mt-1 truncate text-xs text-slate-400" title={flavorId}>
+                      id: {flavorId || 'No id value'}
+                    </p>
+                    {description && (
+                      <p className="mt-1 truncate text-xs text-slate-300" title={description}>
+                        {description}
+                      </p>
+                    )}
+                  </div>
+                  <Link
+                    href={buildHumorFlavorAdminHref(activeView, flavorId, flavorSearchRaw)}
+                    className={`admin-select-flavor-btn mt-3 inline-flex w-full items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      isSelected
+                        ? 'admin-select-flavor-btn-active border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                        : 'border-slate-700 text-slate-200 hover:border-slate-500'
+                    }`}
+                  >
+                    {isSelected ? 'Selected Flavor' : 'Select Flavor'}
+                  </Link>
+                </article>
+              )
+            })
+          })()}
         </div>
       </section>
       )}

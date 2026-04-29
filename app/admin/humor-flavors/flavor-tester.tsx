@@ -213,6 +213,7 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
   const router = useRouter()
   const [selectedFlavorId, setSelectedFlavorId] = useState(defaultFlavorId || MIX_MODE_VALUE)
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>(() => images.slice(0, 3).map((image) => image.id))
+  const [imageSearch, setImageSearch] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [results, setResults] = useState<TestRunResult[]>([])
@@ -223,6 +224,13 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
   )
 
   const imageMap = useMemo(() => new Map(images.map((image) => [image.id, image.url])), [images])
+  const filteredImages = useMemo(() => {
+    const query = imageSearch.trim().toLowerCase()
+    if (!query) return images
+    return images.filter((image) =>
+      image.id.toLowerCase().includes(query) || image.url.toLowerCase().includes(query)
+    )
+  }, [images, imageSearch])
 
   const toggleImage = (imageId: string) => {
     setSelectedImageIds((current) =>
@@ -341,12 +349,24 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
           </label>
 
           <div className="flex flex-wrap items-center gap-2">
+            <label className="grid gap-1 text-xs text-slate-300">
+              Search images
+              <input
+                value={imageSearch}
+                onChange={(event) => setImageSearch(event.target.value)}
+                placeholder="Search by image id or URL..."
+                className="w-72 max-w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setSelectedImageIds(images.map((image) => image.id))}
+              onClick={() => setSelectedImageIds(filteredImages.map((image) => image.id))}
               className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-200 hover:border-slate-500"
             >
-              Select all images
+              Select all shown
             </button>
             <button
               type="button"
@@ -355,11 +375,17 @@ export function FlavorTester({ flavors, images, defaultFlavorId, captionFlavorCo
             >
               Clear selection
             </button>
-            <p className="text-xs text-slate-400">{selectedImageIds.length} selected</p>
+            <p className="text-xs text-slate-400">
+              {selectedImageIds.length} selected | {filteredImages.length} shown / {images.length} total
+            </p>
           </div>
 
           <div className="grid max-h-[40vh] gap-2 overflow-y-auto pr-1 xl:max-h-[52vh]">
-            {images.map((image) => {
+            {filteredImages.length === 0 && (
+              <p className="text-xs text-slate-400">No images match your search.</p>
+            )}
+
+            {filteredImages.map((image) => {
               const isChecked = selectedImageIds.includes(image.id)
 
               return (

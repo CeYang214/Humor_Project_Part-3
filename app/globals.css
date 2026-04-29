@@ -214,8 +214,8 @@ html[data-theme='light'] .admin-theme .admin-select-flavor-btn-active {
 }
 
 html[data-theme='light'] .admin-theme .admin-view-filter-panel {
-  background-color: rgba(226, 232, 240, 0.95) !important;
-  border-color: #94a3b8 !important;
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  border-color: #cbd5e1 !important;
 }
 
 html[data-theme='light'] .admin-theme .admin-view-filter-btn {
@@ -435,8 +435,8 @@ html[data-theme='dark'] .admin-theme [class*='border-slate-6'] {
   }
 
   html:not([data-theme]) .admin-theme .admin-view-filter-panel {
-    background-color: rgba(226, 232, 240, 0.95) !important;
-    border-color: #94a3b8 !important;
+    background-color: rgba(255, 255, 255, 0.88) !important;
+    border-color: #cbd5e1 !important;
   }
 
   html:not([data-theme]) .admin-theme .admin-view-filter-btn {
