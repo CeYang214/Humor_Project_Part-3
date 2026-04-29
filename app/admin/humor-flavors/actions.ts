@@ -25,6 +25,8 @@ import {
 import { requireSuperadminOrMatrixAdmin } from '@/lib/supabase/admin'
 
 type ActionStatus = 'success' | 'error'
+const DEFAULT_GUIDED_STEP_TEMPLATE =
+  'Describe [SUBJECT] in neutral language, then write one [TONE] caption focused on [FOCUS]. Keep it under [MAX_WORDS] words.'
 
 function isRedirectException(error: unknown) {
   if (!error || typeof error !== 'object') return false
@@ -36,6 +38,58 @@ function isRedirectException(error: unknown) {
 function normalizeText(value: FormDataEntryValue | null) {
   if (typeof value !== 'string') return ''
   return value.trim()
+}
+
+function replaceTemplateToken(template: string, token: string, replacement: string) {
+  return template.split(`[${token}]`).join(replacement)
+}
+
+function buildGuidedStepPayload(formData: FormData) {
+  const promptColumn = normalizeText(formData.get('prompt_column'))
+  if (!promptColumn) {
+    throw new Error('Step text column was not detected. Use the JSON payload editor for this table.')
+  }
+
+  const subject = normalizeText(formData.get('subject_word')) || 'the image'
+  const focus = normalizeText(formData.get('focus_word')) || 'the funniest detail'
+  const tone = normalizeText(formData.get('tone_word')) || 'playful'
+  const maxWords = normalizeText(formData.get('max_words')) || '12'
+  const template = normalizeText(formData.get('prompt_template')) || DEFAULT_GUIDED_STEP_TEMPLATE
+
+  let promptText = template
+  promptText = replaceTemplateToken(promptText, 'SUBJECT', subject)
+  promptText = replaceTemplateToken(promptText, 'FOCUS', focus)
+  promptText = replaceTemplateToken(promptText, 'TONE', tone)
+  promptText = replaceTemplateToken(promptText, 'MAX_WORDS', maxWords)
+
+  if (!promptText) {
+    throw new Error('Generated prompt text is empty. Update the guided template fields and try again.')
+  }
+
+  return {
+    [promptColumn]: promptText,
+  } as Record<string, unknown>
+}
+
+function buildGuidedFlavorPayload(formData: FormData) {
+  const flavorNameColumn = normalizeText(formData.get('flavor_name_column')) || 'slug'
+  const flavorDescriptionColumn = normalizeText(formData.get('flavor_description_column')) || 'description'
+  const flavorName = normalizeText(formData.get('flavor_name'))
+  const flavorDescription = normalizeText(formData.get('flavor_description'))
+
+  if (!flavorName) {
+    throw new Error('Flavor name is required.')
+  }
+
+  const payload: Record<string, unknown> = {
+    [flavorNameColumn]: flavorName,
+  }
+
+  if (flavorDescription) {
+    payload[flavorDescriptionColumn] = flavorDescription
+  }
+
+  return payload
 }
 
 function getMessagePath(status: ActionStatus, message: string, flavorId?: string) {
@@ -134,7 +188,8 @@ function revalidateAdminRoutes() {
 
 export async function createHumorFlavorAction(formData: FormData) {
   try {
-    const payload = parseJsonObjectOrThrow(normalizeText(formData.get('payload')))
+    const rawPayload = normalizeText(formData.get('payload'))
+    const payload = rawPayload ? parseJsonObjectOrThrow(rawPayload) : buildGuidedFlavorPayload(formData)
     const { supabase, user, tableName } = await resolveFlavorTableOrThrow()
 
     const { data, error } = await supabase
@@ -167,7 +222,8 @@ export async function updateHumorFlavorAction(formData: FormData) {
       throw new Error('Flavor id is required.')
     }
 
-    const payload = parseJsonObjectOrThrow(normalizeText(formData.get('payload')))
+    const rawPayload = normalizeText(formData.get('payload'))
+    const payload = rawPayload ? parseJsonObjectOrThrow(rawPayload) : buildGuidedFlavorPayload(formData)
     const { supabase, user, tableName } = await resolveFlavorTableOrThrow()
 
     const { error } = await supabase
@@ -486,7 +542,8 @@ export async function createHumorFlavorStepAction(formData: FormData) {
   const suppliedOrderColumn = normalizeText(formData.get('order_column'))
 
   try {
-    const payload = parseJsonObjectOrThrow(normalizeText(formData.get('payload')))
+    const rawPayload = normalizeText(formData.get('payload'))
+    const payload = rawPayload ? parseJsonObjectOrThrow(rawPayload) : buildGuidedStepPayload(formData)
     const { supabase, user, tableName } = await resolveStepTableOrThrow()
     const defaults = await resolveDefaultStepColumns(supabase, tableName, flavorId || undefined)
     const flavorColumn = suppliedFlavorColumn || defaults.flavorColumn
@@ -550,6 +607,66 @@ export async function createHumorFlavorStepAction(formData: FormData) {
   } catch (error) {
     if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Failed to create humor flavor step.'
+    redirect(getMessagePath('error', message, flavorId))
+  }
+}
+
+export async function replaceHumorFlavorStepPromptWordAction(formData: FormData) {
+  const flavorId = normalizeText(formData.get('flavor_id'))
+  const stepId = normalizeText(formData.get('step_id'))
+  const idColumn = normalizeText(formData.get('id_column')) || 'id'
+  const promptColumn = normalizeText(formData.get('prompt_column'))
+  const fromWord = normalizeText(formData.get('from_word'))
+  const toWord = normalizeText(formData.get('to_word'))
+
+  try {
+    if (!stepId) {
+      throw new Error('Step id is required.')
+    }
+    if (!promptColumn) {
+      throw new Error('Prompt column is required for quick word replace.')
+    }
+    if (!fromWord || !toWord) {
+      throw new Error('Both "from" and "to" words are required.')
+    }
+
+    const { supabase, user, tableName } = await resolveStepTableOrThrow()
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .eq(idColumn, parseMaybeJson(stepId))
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      throw new Error(formatSupabaseActionError(error))
+    }
+
+    const row = (data ?? null) as Record<string, unknown> | null
+    const currentPrompt = asCleanString(row?.[promptColumn])
+    if (!currentPrompt) {
+      throw new Error('Current step prompt text is empty or unavailable.')
+    }
+
+    const updatedPrompt = currentPrompt.split(fromWord).join(toWord)
+    if (updatedPrompt === currentPrompt) {
+      throw new Error(`No matches found for "${fromWord}" in this step prompt.`)
+    }
+
+    const { error: updateError } = await supabase
+      .from(tableName)
+      .update(withUpdateAuditFields({ [promptColumn]: updatedPrompt }, user.id))
+      .eq(idColumn, parseMaybeJson(stepId))
+
+    if (updateError) {
+      throw new Error(formatSupabaseActionError(updateError))
+    }
+
+    revalidateAdminRoutes()
+    redirect(getMessagePath('success', 'Step prompt word replacement applied.', flavorId))
+  } catch (error) {
+    if (isRedirectException(error)) throw error
+    const message = error instanceof Error ? error.message : 'Failed to replace word in step prompt.'
     redirect(getMessagePath('error', message, flavorId))
   }
 }

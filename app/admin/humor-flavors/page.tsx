@@ -7,9 +7,16 @@ import {
   deleteHumorFlavorStepAction,
   duplicateHumorFlavorAction,
   moveHumorFlavorStepAction,
+  replaceHumorFlavorStepPromptWordAction,
   updateHumorFlavorAction,
   updateHumorFlavorStepAction,
 } from '@/app/admin/humor-flavors/actions'
+import {
+  GuidedFlavorCreateForm,
+  GuidedFlavorUpdateForm,
+  GuidedStepBuilderForm,
+  PendingSubmitButton,
+} from '@/app/admin/humor-flavors/guided-forms'
 import { FlavorTester } from '@/app/admin/humor-flavors/flavor-tester'
 import {
   CAPTION_FLAVOR_COLUMN_CANDIDATES,
@@ -40,6 +47,8 @@ import {
 import { requireSuperadminOrMatrixAdmin } from '@/lib/supabase/admin'
 
 type DataRow = Record<string, unknown>
+const GUIDED_STEP_TEMPLATE =
+  'Describe [SUBJECT] in neutral language, then write one [TONE] caption focused on [FOCUS]. Keep it under [MAX_WORDS] words.'
 
 interface HumorFlavorsPageProps {
   searchParams: Promise<{
@@ -391,23 +400,40 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           </Link>
         </div>
 
-        <form action={createHumorFlavorAction} className="mt-4 grid gap-2">
-          <label className="grid gap-1 text-sm">
-            <span className="text-slate-300">Create flavor payload (JSON)</span>
-            <textarea
-              name="payload"
-              rows={6}
-              defaultValue={defaultFlavorPayload}
-              className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100"
+        <section className="mt-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-4">
+          <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Guided Flavor Builder</p>
+          <h4 className="mt-1 text-base font-semibold text-slate-100">Only Change Name + Description</h4>
+          <p className="mt-1 text-xs text-slate-300">
+            The row format is handled for you. Fill these fields to create a flavor without editing JSON.
+          </p>
+          <GuidedFlavorCreateForm
+            action={createHumorFlavorAction}
+            flavorNameColumn={flavorNameColumn}
+            flavorDescriptionColumn={flavorDescriptionColumn}
+            defaultName="Sarcastic Dry Humor"
+            defaultDescription="Step-based prompt chain for short, sharp captions."
+          />
+        </section>
+
+        <details className="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-200">Advanced: raw JSON editor</summary>
+          <form action={createHumorFlavorAction} className="mt-3 grid gap-2">
+            <label className="grid gap-1 text-sm">
+              <span className="text-slate-300">Create flavor payload (JSON)</span>
+              <textarea
+                name="payload"
+                rows={6}
+                defaultValue={defaultFlavorPayload}
+                className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100"
+              />
+            </label>
+            <PendingSubmitButton
+              idleLabel="Create Flavor (JSON)"
+              pendingLabel="Creating Flavor..."
+              className="w-fit rounded-xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
             />
-          </label>
-          <button
-            type="submit"
-            className="w-fit rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:from-cyan-600 hover:to-blue-600"
-          >
-            Create Flavor
-          </button>
-        </form>
+          </form>
+        </details>
 
         {selectedFlavor && (
           <article className="mt-5 rounded-xl border border-cyan-400/40 bg-cyan-500/10 p-4">
@@ -417,27 +443,40 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               id: {selectedFlavorId}
             </p>
 
-            <form action={updateHumorFlavorAction} className="mt-3 grid gap-2">
-              <input type="hidden" name="flavor_id" value={selectedFlavorId} />
-              <input type="hidden" name="id_column" value={flavorIdColumn} />
-              <label className="grid gap-1 text-xs text-slate-300">
-                Update selected flavor (JSON)
-                <textarea
-                  name="payload"
-                  rows={8}
-                  defaultValue={stringifyJson(selectedFlavor)}
-                  className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
+            <section className="mt-3 rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3">
+              <p className="text-xs text-cyan-100">Quick Update</p>
+              <GuidedFlavorUpdateForm
+                action={updateHumorFlavorAction}
+                flavorId={selectedFlavorId}
+                idColumn={flavorIdColumn}
+                flavorNameColumn={flavorNameColumn}
+                flavorDescriptionColumn={flavorDescriptionColumn}
+                defaultName={pickFlavorName(selectedFlavor)}
+                defaultDescription={pickFlavorDescription(selectedFlavor)}
+              />
+            </section>
+
+            <details className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-slate-200">Advanced: edit full flavor row JSON</summary>
+              <form action={updateHumorFlavorAction} className="mt-2 grid gap-2">
+                <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+                <input type="hidden" name="id_column" value={flavorIdColumn} />
+                <label className="grid gap-1 text-xs text-slate-300">
+                  Update selected flavor (JSON)
+                  <textarea
+                    name="payload"
+                    rows={8}
+                    defaultValue={stringifyJson(selectedFlavor)}
+                    className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
+                  />
+                </label>
+                <PendingSubmitButton
+                  idleLabel="Update Flavor (JSON)"
+                  pendingLabel="Updating Flavor..."
+                  className="w-fit rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                 />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="submit"
-                  className="admin-accent-btn rounded-lg border border-cyan-500/60 px-3 py-2 text-xs text-cyan-100 transition hover:bg-cyan-500/20"
-                >
-                  Update Selected Flavor
-                </button>
-              </div>
-            </form>
+              </form>
+            </details>
 
             <form action={duplicateHumorFlavorAction} className="mt-3 grid gap-2">
               <input type="hidden" name="source_flavor_id" value={selectedFlavorId} />
@@ -489,26 +528,51 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               LLM columns: model={stepModelColumn ?? 'n/a'} | input={stepInputTypeColumn ?? 'n/a'} | output={stepOutputTypeColumn ?? 'n/a'} | stepType={stepTypeColumn ?? 'n/a'} | temp={stepTemperatureColumn ?? 'n/a'}
             </p>
 
-            <form action={createHumorFlavorStepAction} className="mt-4 grid gap-2">
-              <input type="hidden" name="flavor_id" value={selectedFlavorId} />
-              <input type="hidden" name="flavor_column" value={stepFlavorColumn} />
-              <input type="hidden" name="order_column" value={stepOrderColumn} />
-              <label className="grid gap-1 text-sm">
-                <span className="text-slate-300">Create step payload (JSON)</span>
-                <textarea
-                  name="payload"
-                  rows={6}
-                  defaultValue={defaultStepPayload}
-                  className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100"
+            <section className="mt-4 rounded-xl border border-cyan-500/40 bg-cyan-500/10 p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Guided Step Builder</p>
+              <h4 className="mt-1 text-base font-semibold text-slate-100">Only Change Specific Words</h4>
+              <p className="mt-1 text-xs text-slate-300">
+                Use this form if you want the format provided automatically. You only edit a few words and the step JSON is generated.
+              </p>
+              {stepPromptColumn ? (
+                <GuidedStepBuilderForm
+                  action={createHumorFlavorStepAction}
+                  flavorId={selectedFlavorId}
+                  flavorColumn={stepFlavorColumn}
+                  orderColumn={stepOrderColumn}
+                  promptColumn={stepPromptColumn}
+                  defaultTone={selectedFlavorName || 'playful'}
+                  defaultTemplate={GUIDED_STEP_TEMPLATE}
                 />
-              </label>
-              <button
-                type="submit"
-                className="w-fit rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:from-cyan-600 hover:to-blue-600"
-              >
-                Create Step
-              </button>
-            </form>
+              ) : (
+                <p className="mt-3 text-xs text-amber-200">
+                  Could not detect the step prompt column for this table, so guided creation is unavailable. Use the raw JSON editor below.
+                </p>
+              )}
+            </section>
+
+            <details className="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-200">Advanced: raw JSON editor</summary>
+              <form action={createHumorFlavorStepAction} className="mt-3 grid gap-2">
+                <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+                <input type="hidden" name="flavor_column" value={stepFlavorColumn} />
+                <input type="hidden" name="order_column" value={stepOrderColumn} />
+                <label className="grid gap-1 text-sm">
+                  <span className="text-slate-300">Create step payload (JSON)</span>
+                  <textarea
+                    name="payload"
+                    rows={6}
+                    defaultValue={defaultStepPayload}
+                    className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100"
+                  />
+                </label>
+                <PendingSubmitButton
+                  idleLabel="Create Step (JSON)"
+                  pendingLabel="Creating Step..."
+                  className="w-fit rounded-xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
+                />
+              </form>
+            </details>
 
             <div className="mt-5 space-y-3">
               {selectedFlavorSteps.length === 0 && (
@@ -584,6 +648,34 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                         </form>
                       </div>
                     </div>
+
+                    {stepPromptColumn && (
+                      <form action={replaceHumorFlavorStepPromptWordAction} className="mt-3 grid gap-2 rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                        <input type="hidden" name="flavor_id" value={selectedFlavorId} />
+                        <input type="hidden" name="step_id" value={stepId} />
+                        <input type="hidden" name="id_column" value={stepIdColumn} />
+                        <input type="hidden" name="prompt_column" value={stepPromptColumn} />
+                        <p className="text-xs text-slate-300">Quick edit: replace one specific word in this step prompt.</p>
+                        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                          <input
+                            name="from_word"
+                            placeholder="word to replace"
+                            className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+                          />
+                          <input
+                            name="to_word"
+                            placeholder="new word"
+                            className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100"
+                          />
+                          <button
+                            type="submit"
+                            className="admin-neutral-btn rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition hover:border-slate-500"
+                          >
+                            Replace Word
+                          </button>
+                        </div>
+                      </form>
+                    )}
 
                     <form action={updateHumorFlavorStepAction} className="mt-3 grid gap-2">
                       <input type="hidden" name="flavor_id" value={selectedFlavorId} />
