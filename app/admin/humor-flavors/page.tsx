@@ -202,28 +202,67 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
   const { supabase } = await requireSuperadminOrMatrixAdmin()
   const params = await searchParams
 
-  const flavorTableResolution = await resolveFirstExistingTable(supabase, HUMOR_FLAVOR_TABLE_CANDIDATES)
-  const stepTableResolution = await resolveFirstExistingTable(supabase, HUMOR_FLAVOR_STEP_TABLE_CANDIDATES)
+  const bannerStatus = params.status === 'success' ? 'success' : params.status === 'error' ? 'error' : null
+  const bannerMessage = asCleanString(params.message)
+  const flavorSearchRaw = asCleanString(params.flavor_q)
+  const flavorSearchLower = flavorSearchRaw.toLowerCase()
+  const activeView = normalizeHumorFlavorAdminView(asCleanString(params.view))
+  const showAll = activeView === 'all'
+  const showFlavors = showAll || activeView === 'flavors'
+  const showSteps = showAll || activeView === 'steps'
+  const showCaptions = showAll || activeView === 'captions'
+  const showTester = showAll || activeView === 'tester'
+  const showDirectory = showAll || activeView === 'directory'
+  const shouldLoadStepData = showSteps
+  const shouldLoadCaptionRows = showCaptions
+  const shouldResolveCaptionFlavorColumn = showCaptions || showTester
+  const shouldLoadImages = showTester
+  const viewOptions: Array<{ key: HumorFlavorAdminView; label: string }> = [
+    { key: 'all', label: 'All Sections' },
+    { key: 'flavors', label: 'Flavor CRUD' },
+    { key: 'steps', label: 'Step Builder' },
+    { key: 'captions', label: 'Caption Readout' },
+    { key: 'tester', label: 'Prompt Tester' },
+    { key: 'directory', label: 'Flavor Directory' },
+  ]
 
-  const flavorRowsResult = flavorTableResolution.tableName
-    ? await supabase.from(flavorTableResolution.tableName).select('*').limit(400)
-    : { data: [], error: null }
+  const [flavorTableResolution, stepTableResolution] = await Promise.all([
+    resolveFirstExistingTable(supabase, HUMOR_FLAVOR_TABLE_CANDIDATES),
+    shouldLoadStepData
+      ? resolveFirstExistingTable(supabase, HUMOR_FLAVOR_STEP_TABLE_CANDIDATES)
+      : Promise.resolve({ tableName: null, errorMessage: null }),
+  ])
 
-  const stepRowsResult = stepTableResolution.tableName
-    ? await supabase.from(stepTableResolution.tableName).select('*').limit(800)
-    : { data: [], error: null }
+  const flavorRowsPromise = flavorTableResolution.tableName
+    ? supabase.from(flavorTableResolution.tableName).select('*').limit(400)
+    : Promise.resolve({ data: [], error: null })
+  const stepRowsPromise = shouldLoadStepData && stepTableResolution.tableName
+    ? supabase.from(stepTableResolution.tableName).select('*').limit(800)
+    : Promise.resolve({ data: [], error: null })
+  const imageRowsPromise = shouldLoadImages
+    ? loadAllTestImages(supabase)
+    : Promise.resolve({ data: [], error: null })
+  const captionRowsPromise = shouldLoadCaptionRows
+    ? (async () => {
+        let captionRowsResult = await supabase
+          .from('captions')
+          .select('*')
+          .order('created_datetime_utc', { ascending: false })
+          .limit(300)
 
-  const imageRowsResult = await loadAllTestImages(supabase)
+        if (captionRowsResult.error && /column .* does not exist/i.test(captionRowsResult.error.message)) {
+          captionRowsResult = await supabase.from('captions').select('*').limit(300)
+        }
+        return captionRowsResult
+      })()
+    : Promise.resolve({ data: [], error: null })
 
-  let captionRowsResult = await supabase
-    .from('captions')
-    .select('*')
-    .order('created_datetime_utc', { ascending: false })
-    .limit(300)
-
-  if (captionRowsResult.error && /column .* does not exist/i.test(captionRowsResult.error.message)) {
-    captionRowsResult = await supabase.from('captions').select('*').limit(300)
-  }
+  const [flavorRowsResult, stepRowsResult, imageRowsResult, captionRowsResult] = await Promise.all([
+    flavorRowsPromise,
+    stepRowsPromise,
+    imageRowsPromise,
+    captionRowsPromise,
+  ])
 
   const flavorRows = ((flavorRowsResult.data ?? []) as DataRow[])
     .filter((row) => Object.keys(row).length > 0)
@@ -379,8 +418,10 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
   const defaultStepPayload = stringifyPayloadObject(defaultStepPayloadObject)
 
   const captions = (captionRowsResult.data ?? []) as DataRow[]
-  const captionFlavorColumn = pickFirstExistingColumn(captions, CAPTION_FLAVOR_COLUMN_CANDIDATES)
-    ?? (await resolveFirstExistingColumn(supabase, 'captions', CAPTION_FLAVOR_COLUMN_CANDIDATES))
+  const captionFlavorColumn = shouldResolveCaptionFlavorColumn
+    ? pickFirstExistingColumn(captions, CAPTION_FLAVOR_COLUMN_CANDIDATES)
+      ?? (await resolveFirstExistingColumn(supabase, 'captions', CAPTION_FLAVOR_COLUMN_CANDIDATES))
+    : null
   const flavorCaptions = selectedFlavor
     ? captions.filter((row) => {
         if (!captionFlavorColumn) return false
@@ -402,26 +443,6 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
       url: asCleanString(row.url),
     }))
     .filter((row) => row.id && row.url)
-
-  const bannerStatus = params.status === 'success' ? 'success' : params.status === 'error' ? 'error' : null
-  const bannerMessage = asCleanString(params.message)
-  const flavorSearchRaw = asCleanString(params.flavor_q)
-  const flavorSearchLower = flavorSearchRaw.toLowerCase()
-  const activeView = normalizeHumorFlavorAdminView(asCleanString(params.view))
-  const showAll = activeView === 'all'
-  const showFlavors = showAll || activeView === 'flavors'
-  const showSteps = showAll || activeView === 'steps'
-  const showCaptions = showAll || activeView === 'captions'
-  const showTester = showAll || activeView === 'tester'
-  const showDirectory = showAll || activeView === 'directory'
-  const viewOptions: Array<{ key: HumorFlavorAdminView; label: string }> = [
-    { key: 'all', label: 'All Sections' },
-    { key: 'flavors', label: 'Flavor CRUD' },
-    { key: 'steps', label: 'Step Builder' },
-    { key: 'captions', label: 'Caption Readout' },
-    { key: 'tester', label: 'Prompt Tester' },
-    { key: 'directory', label: 'Flavor Directory' },
-  ]
 
   return (
     <div className="space-y-6">
@@ -457,7 +478,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
       )}
 
       <section className="admin-view-filter-panel rounded-2xl border border-slate-700 bg-slate-950/80 p-4">
-        <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">View Filter</p>
+        <p className="admin-view-filter-label text-xs uppercase tracking-[0.16em] text-cyan-200">View Filter</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {viewOptions.map((option) => {
             const isActive = option.key === activeView
@@ -536,10 +557,10 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         </details>
 
         {selectedFlavor && (
-          <article className="mt-5 rounded-xl border border-cyan-400/40 bg-cyan-500/10 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Selected Flavor</p>
+          <article className="admin-selected-flavor-card mt-5 rounded-xl border border-cyan-400/60 bg-cyan-600/20 p-4">
+            <p className="admin-selected-flavor-label text-xs uppercase tracking-[0.16em] text-slate-100">Selected Flavor</p>
             <p className="mt-2 text-lg font-semibold text-slate-100">{selectedFlavorName}</p>
-            <p className="mt-1 text-xs text-slate-300" title={selectedFlavorId}>
+            <p className="mt-1 text-xs text-slate-200" title={selectedFlavorId}>
               id: {selectedFlavorId}
             </p>
 
