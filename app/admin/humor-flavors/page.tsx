@@ -48,6 +48,7 @@ import {
 import { requireSuperadminOrMatrixAdmin } from '@/lib/supabase/admin'
 
 type DataRow = Record<string, unknown>
+type HumorFlavorAdminView = 'all' | 'flavors' | 'steps' | 'captions' | 'tester' | 'directory'
 const GUIDED_STEP_TEMPLATE =
   'Describe [SUBJECT] in neutral language, then write one [TONE] caption focused on [FOCUS]. Keep it under [MAX_WORDS] words.'
 
@@ -56,7 +57,26 @@ interface HumorFlavorsPageProps {
     status?: string
     message?: string
     flavor?: string
+    view?: string
   }>
+}
+
+function normalizeHumorFlavorAdminView(value: string): HumorFlavorAdminView {
+  const trimmed = value.trim().toLowerCase()
+  const validViews: HumorFlavorAdminView[] = ['all', 'flavors', 'steps', 'captions', 'tester', 'directory']
+  return validViews.includes(trimmed as HumorFlavorAdminView) ? (trimmed as HumorFlavorAdminView) : 'all'
+}
+
+function buildHumorFlavorAdminHref(view: HumorFlavorAdminView, flavorId?: string) {
+  const params = new URLSearchParams()
+  if (view !== 'all') {
+    params.set('view', view)
+  }
+  if (flavorId) {
+    params.set('flavor', flavorId)
+  }
+  const query = params.toString()
+  return query ? `/admin/humor-flavors?${query}` : '/admin/humor-flavors'
 }
 
 function getCaptionText(row: DataRow) {
@@ -346,6 +366,21 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
   const bannerStatus = params.status === 'success' ? 'success' : params.status === 'error' ? 'error' : null
   const bannerMessage = asCleanString(params.message)
+  const activeView = normalizeHumorFlavorAdminView(asCleanString(params.view))
+  const showAll = activeView === 'all'
+  const showFlavors = showAll || activeView === 'flavors'
+  const showSteps = showAll || activeView === 'steps'
+  const showCaptions = showAll || activeView === 'captions'
+  const showTester = showAll || activeView === 'tester'
+  const showDirectory = showAll || activeView === 'directory'
+  const viewOptions: Array<{ key: HumorFlavorAdminView; label: string }> = [
+    { key: 'all', label: 'All Sections' },
+    { key: 'flavors', label: 'Flavor CRUD' },
+    { key: 'steps', label: 'Step Builder' },
+    { key: 'captions', label: 'Caption Readout' },
+    { key: 'tester', label: 'Prompt Tester' },
+    { key: 'directory', label: 'Flavor Directory' },
+  ]
 
   return (
     <div className="space-y-6">
@@ -380,6 +415,29 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         </section>
       )}
 
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+        <p className="text-xs uppercase tracking-[0.16em] text-cyan-200/80">View Filter</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {viewOptions.map((option) => {
+            const isActive = option.key === activeView
+            return (
+              <Link
+                key={option.key}
+                href={buildHumorFlavorAdminHref(option.key, selectedFlavorId || undefined)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  isActive
+                    ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
+                    : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                }`}
+              >
+                {option.label}
+              </Link>
+            )
+          })}
+        </div>
+      </section>
+
+      {showFlavors && (
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -511,7 +569,9 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           </article>
         )}
       </section>
+      )}
 
+      {showSteps && (
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
         <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Humor Flavor Steps</p>
         <h3 className="mt-1 text-xl font-semibold">Step CRUD + Reordering</h3>
@@ -721,7 +781,9 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           <p className="mt-3 text-sm text-slate-300">Create a flavor first, then select it to manage steps.</p>
         )}
       </section>
+      )}
 
+      {showCaptions && (
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
         <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Caption Readout</p>
         <h3 className="mt-1 text-xl font-semibold">Captions Produced By Selected Flavor</h3>
@@ -766,21 +828,25 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           })}
         </div>
       </section>
-
-      {flavorOptions.length > 0 && testImages.length > 0 ? (
-        <FlavorTester
-          flavors={flavorOptions}
-          images={testImages}
-          defaultFlavorId={selectedFlavorId || flavorOptions[0].id}
-          captionFlavorColumn={captionFlavorColumn}
-        />
-      ) : (
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">
-          The prompt-chain tester needs at least one flavor and one image URL in your database.
-          {imageRowsResult.error && <p className="mt-2 text-amber-200">Image load error: {imageRowsResult.error.message}</p>}
-        </section>
       )}
 
+      {showTester && (
+        flavorOptions.length > 0 && testImages.length > 0 ? (
+          <FlavorTester
+            flavors={flavorOptions}
+            images={testImages}
+            defaultFlavorId={selectedFlavorId || flavorOptions[0].id}
+            captionFlavorColumn={captionFlavorColumn}
+          />
+        ) : (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-300">
+            The prompt-chain tester needs at least one flavor and one image URL in your database.
+            {imageRowsResult.error && <p className="mt-2 text-amber-200">Image load error: {imageRowsResult.error.message}</p>}
+          </section>
+        )
+      )}
+
+      {showDirectory && (
       <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
         <p className="text-xs uppercase tracking-[0.18em] text-cyan-200/80">Flavor Directory</p>
         <h3 className="mt-1 text-xl font-semibold">Pick Flavor To Manage</h3>
@@ -813,7 +879,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                   )}
                 </div>
                 <Link
-                  href={`/admin/humor-flavors?flavor=${encodeURIComponent(flavorId)}`}
+                  href={buildHumorFlavorAdminHref(activeView, flavorId)}
                   className={`mt-3 inline-flex w-full items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                     isSelected
                       ? 'border-cyan-300/60 bg-cyan-500/20 text-cyan-100'
@@ -827,6 +893,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           })}
         </div>
       </section>
+      )}
     </div>
   )
 }
