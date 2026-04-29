@@ -13,8 +13,8 @@ html[data-theme='light'] {
 }
 
 html[data-theme='dark'] {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #0f172a;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
@@ -26,8 +26,8 @@ html[data-theme='dark'] {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f172a;
+    --foreground: #e2e8f0;
   }
 }
 
@@ -213,6 +213,51 @@ html[data-theme='light'] .admin-theme .admin-select-flavor-btn-active {
   box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.45) !important;
 }
 
+html[data-theme='light'] .admin-theme .admin-view-filter-panel {
+  background-color: rgba(226, 232, 240, 0.95) !important;
+  border-color: #94a3b8 !important;
+}
+
+html[data-theme='light'] .admin-theme .admin-view-filter-btn {
+  color: #0f172a !important;
+  border-color: #64748b !important;
+  background-color: rgba(241, 245, 249, 0.95) !important;
+}
+
+html[data-theme='light'] .admin-theme .admin-view-filter-btn:hover {
+  border-color: #334155 !important;
+  background-color: rgba(226, 232, 240, 0.95) !important;
+}
+
+html[data-theme='light'] .admin-theme .admin-view-filter-btn-active {
+  color: #ffffff !important;
+  border-color: rgba(14, 116, 144, 0.85) !important;
+  background-color: #0284c7 !important;
+  box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.4) !important;
+}
+
+html[data-theme='dark'] .admin-theme {
+  background: radial-gradient(circle at top left, #1e293b 0%, #0f172a 55%, #020617 100%) !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .admin-theme [class*='bg-slate-9'],
+html[data-theme='dark'] .admin-theme [class*='bg-slate-8'] {
+  background-color: rgba(30, 41, 59, 0.84) !important;
+}
+
+html[data-theme='dark'] .admin-theme [class*='text-slate-3'],
+html[data-theme='dark'] .admin-theme [class*='text-slate-4'],
+html[data-theme='dark'] .admin-theme [class*='text-slate-5'] {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .admin-theme [class*='border-slate-8'],
+html[data-theme='dark'] .admin-theme [class*='border-slate-7'],
+html[data-theme='dark'] .admin-theme [class*='border-slate-6'] {
+  border-color: #475569 !important;
+}
+
 @media (prefers-color-scheme: light) {
   html:not([data-theme]) .admin-theme {
     background: radial-gradient(circle at top left, #dbeafe 0%, #f8fafc 55%, #eef2ff 100%) !important;
@@ -387,5 +432,52 @@ html[data-theme='light'] .admin-theme .admin-select-flavor-btn-active {
     border-color: rgba(14, 116, 144, 0.7) !important;
     background-color: rgba(125, 211, 252, 0.55) !important;
     box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.45) !important;
+  }
+
+  html:not([data-theme]) .admin-theme .admin-view-filter-panel {
+    background-color: rgba(226, 232, 240, 0.95) !important;
+    border-color: #94a3b8 !important;
+  }
+
+  html:not([data-theme]) .admin-theme .admin-view-filter-btn {
+    color: #0f172a !important;
+    border-color: #64748b !important;
+    background-color: rgba(241, 245, 249, 0.95) !important;
+  }
+
+  html:not([data-theme]) .admin-theme .admin-view-filter-btn:hover {
+    border-color: #334155 !important;
+    background-color: rgba(226, 232, 240, 0.95) !important;
+  }
+
+  html:not([data-theme]) .admin-theme .admin-view-filter-btn-active {
+    color: #ffffff !important;
+    border-color: rgba(14, 116, 144, 0.85) !important;
+    background-color: #0284c7 !important;
+    box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.4) !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .admin-theme {
+    background: radial-gradient(circle at top left, #1e293b 0%, #0f172a 55%, #020617 100%) !important;
+    color: #e2e8f0 !important;
+  }
+
+  html:not([data-theme]) .admin-theme [class*='bg-slate-9'],
+  html:not([data-theme]) .admin-theme [class*='bg-slate-8'] {
+    background-color: rgba(30, 41, 59, 0.84) !important;
+  }
+
+  html:not([data-theme]) .admin-theme [class*='text-slate-3'],
+  html:not([data-theme]) .admin-theme [class*='text-slate-4'],
+  html:not([data-theme]) .admin-theme [class*='text-slate-5'] {
+    color: #cbd5e1 !important;
+  }
+
+  html:not([data-theme]) .admin-theme [class*='border-slate-8'],
+  html:not([data-theme]) .admin-theme [class*='border-slate-7'],
+  html:not([data-theme]) .admin-theme [class*='border-slate-6'] {
+    border-color: #475569 !important;
   }
 }

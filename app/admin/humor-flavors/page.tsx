@@ -415,7 +415,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         </section>
       )}
 
-      <section className="rounded-2xl border border-slate-700 bg-slate-950/80 p-4">
+      <section className="admin-view-filter-panel rounded-2xl border border-slate-700 bg-slate-950/80 p-4">
         <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">View Filter</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {viewOptions.map((option) => {
@@ -424,9 +424,9 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               <Link
                 key={option.key}
                 href={buildHumorFlavorAdminHref(option.key, selectedFlavorId || undefined)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                className={`admin-view-filter-btn rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   isActive
-                    ? 'border-cyan-300 bg-cyan-600 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
+                    ? 'admin-view-filter-btn-active border-cyan-300 bg-cyan-600 text-white shadow-[0_0_0_1px_rgba(56,189,248,0.35)]'
                     : 'border-slate-600 bg-slate-900 text-slate-200 hover:border-slate-400 hover:bg-slate-800'
                 }`}
               >
