@@ -66,7 +66,7 @@ interface HumorFlavorsPageProps {
 function normalizeHumorFlavorAdminView(value: string): HumorFlavorAdminView {
   const trimmed = value.trim().toLowerCase()
   const validViews: HumorFlavorAdminView[] = ['all', 'flavors', 'steps', 'captions', 'tester', 'directory']
-  return validViews.includes(trimmed as HumorFlavorAdminView) ? (trimmed as HumorFlavorAdminView) : 'all'
+  return validViews.includes(trimmed as HumorFlavorAdminView) ? (trimmed as HumorFlavorAdminView) : 'flavors'
 }
 
 function buildHumorFlavorAdminHref(view: HumorFlavorAdminView, flavorId?: string, flavorQuery?: string) {
