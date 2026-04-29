@@ -14,7 +14,7 @@ import { requireSuperadminOrMatrixAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 type ActionStatus = 'success' | 'error'
-type AdminRedirectTarget = '/admin/operations'
+type AdminRedirectTarget = `/admin/operations${string}`
 type JsonObject = Record<string, unknown>
 
 function isRedirectException(error: unknown) {
@@ -33,24 +33,50 @@ function getMessagePath(status: ActionStatus, message: string) {
   return `/admin/images?status=${status}&message=${encodeURIComponent(message)}`
 }
 
-function getOperationsMessagePath(status: ActionStatus, message: string, entityKey?: string) {
-  const entityParam = entityKey ? `&entity=${encodeURIComponent(entityKey)}` : ''
-  return `/admin/operations?status=${status}&message=${encodeURIComponent(message)}${entityParam}`
+function getMessagePathForTarget(target: AdminRedirectTarget, status: ActionStatus, message: string, entityKey?: string) {
+  const params = new URLSearchParams({
+    status,
+    message,
+  })
+
+  if (entityKey) {
+    params.set('entity', entityKey)
+  }
+
+  return `${target}?${params.toString()}`
 }
 
-function normalizeRedirectTarget(value: FormDataEntryValue | null): AdminRedirectTarget {
-  if (value === '/admin/operations') return '/admin/operations'
+function normalizeRedirectTarget(value: FormDataEntryValue | null, entityKey?: string): AdminRedirectTarget {
+  const raw = normalizeText(value)
+  if (raw === '/admin/operations') return raw
+
+  const [pathOnly] = raw.split('?')
+
+  if (pathOnly?.startsWith('/admin/operations/')) {
+    const maybeEntityKey = pathOnly.slice('/admin/operations/'.length)
+    if (getEntityDefinition(maybeEntityKey)) {
+      return raw as AdminRedirectTarget
+    }
+  }
+
+  if (entityKey && getEntityDefinition(entityKey)) {
+    return `/admin/operations/${entityKey}`
+  }
+
   return '/admin/operations'
 }
 
 function getEntityMessagePath(target: AdminRedirectTarget, status: ActionStatus, message: string, entityKey?: string) {
-  return getOperationsMessagePath(status, message, entityKey)
+  return getMessagePathForTarget(target, status, message, entityKey)
 }
 
-function revalidateAdminRoutes() {
+function revalidateAdminRoutes(entityKey?: string) {
   revalidatePath('/admin')
   revalidatePath('/admin/images')
   revalidatePath('/admin/operations')
+  if (entityKey) {
+    revalidatePath(`/admin/operations/${entityKey}`)
+  }
 }
 
 function assertEntity(entityKey: string) {
@@ -101,7 +127,7 @@ export async function signOutAdminAction() {
 
 export async function createEntityAction(formData: FormData) {
   const entityKey = normalizeText(formData.get('entity_key'))
-  const redirectTarget = normalizeRedirectTarget(formData.get('redirect_to'))
+  const redirectTarget = normalizeRedirectTarget(formData.get('redirect_to'), entityKey)
 
   try {
     const payload = parseJsonObject(normalizeText(formData.get('payload')))
@@ -117,7 +143,7 @@ export async function createEntityAction(formData: FormData) {
       throw new Error(error.message)
     }
 
-    revalidateAdminRoutes()
+    revalidateAdminRoutes(entityKey)
     redirect(getEntityMessagePath(redirectTarget, 'success', `${entity.label}: row created.`, entityKey))
   } catch (error) {
     if (isRedirectException(error)) throw error
@@ -128,7 +154,7 @@ export async function createEntityAction(formData: FormData) {
 
 export async function updateEntityAction(formData: FormData) {
   const entityKey = normalizeText(formData.get('entity_key'))
-  const redirectTarget = normalizeRedirectTarget(formData.get('redirect_to'))
+  const redirectTarget = normalizeRedirectTarget(formData.get('redirect_to'), entityKey)
 
   try {
     const payload = parseJsonObject(normalizeText(formData.get('payload')))
@@ -153,7 +179,7 @@ export async function updateEntityAction(formData: FormData) {
       throw new Error(error.message)
     }
 
-    revalidateAdminRoutes()
+    revalidateAdminRoutes(entityKey)
     redirect(getEntityMessagePath(redirectTarget, 'success', `${entity.label}: row updated.`, entityKey))
   } catch (error) {
     if (isRedirectException(error)) throw error
@@ -164,7 +190,7 @@ export async function updateEntityAction(formData: FormData) {
 
 export async function deleteEntityAction(formData: FormData) {
   const entityKey = normalizeText(formData.get('entity_key'))
-  const redirectTarget = normalizeRedirectTarget(formData.get('redirect_to'))
+  const redirectTarget = normalizeRedirectTarget(formData.get('redirect_to'), entityKey)
 
   try {
     const matchColumn = normalizeText(formData.get('match_column'))
@@ -188,7 +214,7 @@ export async function deleteEntityAction(formData: FormData) {
       throw new Error(error.message)
     }
 
-    revalidateAdminRoutes()
+    revalidateAdminRoutes(entityKey)
     redirect(getEntityMessagePath(redirectTarget, 'success', `${entity.label}: row deleted.`, entityKey))
   } catch (error) {
     if (isRedirectException(error)) throw error
@@ -199,6 +225,7 @@ export async function deleteEntityAction(formData: FormData) {
 
 export async function uploadImageAction(formData: FormData) {
   const entityKey = 'images'
+  const redirectTarget = normalizeRedirectTarget(formData.get('redirect_to'), entityKey)
 
   try {
     const { supabase, user, entity, tableName } = await (async () => {
@@ -214,7 +241,7 @@ export async function uploadImageAction(formData: FormData) {
     })()
 
     if (!entitySupportsCreate(entity)) {
-      redirect(getOperationsMessagePath('error', 'Images table is not configured for create operations.', entityKey))
+      redirect(getEntityMessagePath(redirectTarget, 'error', 'Images table is not configured for create operations.', entityKey))
     }
 
     const file = formData.get('file')
@@ -258,12 +285,12 @@ export async function uploadImageAction(formData: FormData) {
       throw new Error(insertError.message)
     }
 
-    revalidateAdminRoutes()
-    redirect(getOperationsMessagePath('success', `Image uploaded to ${bucket}/${objectPath}`, entityKey))
+    revalidateAdminRoutes(entityKey)
+    redirect(getEntityMessagePath(redirectTarget, 'success', `Image uploaded to ${bucket}/${objectPath}`, entityKey))
   } catch (error) {
     if (isRedirectException(error)) throw error
     const message = error instanceof Error ? error.message : 'Image upload failed.'
-    redirect(getOperationsMessagePath('error', message, entityKey))
+    redirect(getEntityMessagePath(redirectTarget, 'error', message, entityKey))
   }
 }
 

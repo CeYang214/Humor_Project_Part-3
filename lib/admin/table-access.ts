@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
 import { AdminEntityDefinition } from '@/lib/admin/entities'
+import { parsePayloadInput, stringifyPayloadInput } from '@/lib/admin/payload-input'
 
 export type EntityRow = Record<string, unknown>
 
@@ -113,24 +114,11 @@ export function stringifyJson(value: unknown) {
 }
 
 export function parseJsonObject(raw: string) {
-  const trimmed = raw.trim()
-  if (!trimmed) {
-    throw new Error('JSON payload is required.')
-  }
+  return parsePayloadInput(raw)
+}
 
-  let parsed: unknown
-
-  try {
-    parsed = JSON.parse(trimmed)
-  } catch {
-    throw new Error('Payload must be valid JSON.')
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Payload must be a JSON object.')
-  }
-
-  return parsed as Record<string, unknown>
+export function stringifyPayloadObject(value: Record<string, unknown>) {
+  return stringifyPayloadInput(value)
 }
 
 export function parseMatchValue(raw: string) {

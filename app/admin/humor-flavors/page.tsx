@@ -43,6 +43,7 @@ import {
   resolveFirstExistingTable,
   sortStepsByOrder,
   stringifyJson,
+  stringifyPayloadObject,
 } from '@/lib/admin/humor-flavors'
 import { requireSuperadminOrMatrixAdmin } from '@/lib/supabase/admin'
 
@@ -289,7 +290,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
 
   const templateStepForDefaults = selectedFlavorSteps[0] ?? stepRows[0] ?? null
 
-  const defaultFlavorPayload = stringifyJson({
+  const defaultFlavorPayload = stringifyPayloadObject({
     [flavorNameColumn]: 'Sarcastic Dry Humor',
     [flavorDescriptionColumn]: 'Step-based prompt chain for short, sharp captions.',
   })
@@ -316,7 +317,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
   if (stepTemperatureColumn && templateStepForDefaults?.[stepTemperatureColumn] !== undefined) {
     defaultStepPayloadObject[stepTemperatureColumn] = templateStepForDefaults[stepTemperatureColumn]
   }
-  const defaultStepPayload = stringifyJson(defaultStepPayloadObject)
+  const defaultStepPayload = stringifyPayloadObject(defaultStepPayloadObject)
 
   const captions = (captionRowsResult.data ?? []) as DataRow[]
   const captionFlavorColumn = pickFirstExistingColumn(captions, CAPTION_FLAVOR_COLUMN_CANDIDATES)
@@ -393,7 +394,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             <p className="mt-1 text-xs text-slate-400">Flavors are sorted newest first.</p>
           </div>
           <Link
-            href="/admin/operations?entity=humor_flavors"
+            href="/admin/operations/humor_flavors"
             className="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 transition hover:border-slate-500"
           >
             Open Generic Operations
@@ -404,7 +405,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
           <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Guided Flavor Builder</p>
           <h4 className="mt-1 text-base font-semibold text-slate-100">Only Change Name + Description</h4>
           <p className="mt-1 text-xs text-slate-300">
-            The row format is handled for you. Fill these fields to create a flavor without editing JSON.
+            The row format is handled for you. Fill these fields to create a flavor without editing payload syntax.
           </p>
           <GuidedFlavorCreateForm
             action={createHumorFlavorAction}
@@ -416,10 +417,10 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
         </section>
 
         <details className="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-200">Advanced: raw JSON editor</summary>
+          <summary className="cursor-pointer text-sm font-semibold text-slate-200">Advanced: raw payload editor</summary>
           <form action={createHumorFlavorAction} className="mt-3 grid gap-2">
             <label className="grid gap-1 text-sm">
-              <span className="text-slate-300">Create flavor payload (JSON)</span>
+              <span className="text-slate-300">Create flavor payload (`column: value` per line; JSON also works)</span>
               <textarea
                 name="payload"
                 rows={6}
@@ -428,7 +429,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               />
             </label>
             <PendingSubmitButton
-              idleLabel="Create Flavor (JSON)"
+              idleLabel="Create Flavor (Payload)"
               pendingLabel="Creating Flavor..."
               className="w-fit rounded-xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
             />
@@ -457,21 +458,21 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
             </section>
 
             <details className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-              <summary className="cursor-pointer text-xs font-semibold text-slate-200">Advanced: edit full flavor row JSON</summary>
+              <summary className="cursor-pointer text-xs font-semibold text-slate-200">Advanced: edit full flavor row payload</summary>
               <form action={updateHumorFlavorAction} className="mt-2 grid gap-2">
                 <input type="hidden" name="flavor_id" value={selectedFlavorId} />
                 <input type="hidden" name="id_column" value={flavorIdColumn} />
                 <label className="grid gap-1 text-xs text-slate-300">
-                  Update selected flavor (JSON)
+                  Update selected flavor (`column: value` per line; JSON also works)
                   <textarea
                     name="payload"
                     rows={8}
-                    defaultValue={stringifyJson(selectedFlavor)}
+                    defaultValue={stringifyPayloadObject(selectedFlavor)}
                     className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
                   />
                 </label>
                 <PendingSubmitButton
-                  idleLabel="Update Flavor (JSON)"
+                  idleLabel="Update Flavor (Payload)"
                   pendingLabel="Updating Flavor..."
                   className="w-fit rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                 />
@@ -532,7 +533,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
               <p className="text-xs uppercase tracking-[0.16em] text-cyan-200">Guided Step Builder</p>
               <h4 className="mt-1 text-base font-semibold text-slate-100">Only Change Specific Words</h4>
               <p className="mt-1 text-xs text-slate-300">
-                Use this form if you want the format provided automatically. You only edit a few words and the step JSON is generated.
+                Use this form if you want the format provided automatically. You only edit a few words and the step payload is generated.
               </p>
               {stepPromptColumn ? (
                 <GuidedStepBuilderForm
@@ -546,19 +547,19 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                 />
               ) : (
                 <p className="mt-3 text-xs text-amber-200">
-                  Could not detect the step prompt column for this table, so guided creation is unavailable. Use the raw JSON editor below.
+                  Could not detect the step prompt column for this table, so guided creation is unavailable. Use the raw payload editor below.
                 </p>
               )}
             </section>
 
             <details className="mt-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-slate-200">Advanced: raw JSON editor</summary>
+              <summary className="cursor-pointer text-sm font-semibold text-slate-200">Advanced: raw payload editor</summary>
               <form action={createHumorFlavorStepAction} className="mt-3 grid gap-2">
                 <input type="hidden" name="flavor_id" value={selectedFlavorId} />
                 <input type="hidden" name="flavor_column" value={stepFlavorColumn} />
                 <input type="hidden" name="order_column" value={stepOrderColumn} />
                 <label className="grid gap-1 text-sm">
-                  <span className="text-slate-300">Create step payload (JSON)</span>
+                  <span className="text-slate-300">Create step payload (`column: value` per line; JSON also works)</span>
                   <textarea
                     name="payload"
                     rows={6}
@@ -567,7 +568,7 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                   />
                 </label>
                 <PendingSubmitButton
-                  idleLabel="Create Step (JSON)"
+                  idleLabel="Create Step (Payload)"
                   pendingLabel="Creating Step..."
                   className="w-fit rounded-xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                 />
@@ -682,11 +683,11 @@ export default async function HumorFlavorsAdminPage({ searchParams }: HumorFlavo
                       <input type="hidden" name="step_id" value={stepId} />
                       <input type="hidden" name="id_column" value={stepIdColumn} />
                       <label className="grid gap-1 text-xs text-slate-300">
-                        Update step row (JSON)
+                        Update step row (`column: value` per line; JSON also works)
                         <textarea
                           name="payload"
                           rows={8}
-                          defaultValue={stringifyJson(row)}
+                          defaultValue={stringifyPayloadObject(row)}
                           className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100"
                         />
                       </label>

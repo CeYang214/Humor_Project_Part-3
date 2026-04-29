@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import { parsePayloadInput, stringifyPayloadInput } from '@/lib/admin/payload-input'
 
 export type DataRow = Record<string, unknown>
 
@@ -201,21 +202,9 @@ export function stringifyJson(value: unknown) {
 }
 
 export function parseJsonObjectOrThrow(raw: string) {
-  const trimmed = raw.trim()
-  if (!trimmed) {
-    throw new Error('JSON payload is required.')
-  }
+  return parsePayloadInput(raw)
+}
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(trimmed)
-  } catch {
-    throw new Error('Payload must be valid JSON.')
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Payload must be a JSON object.')
-  }
-
-  return parsed as DataRow
+export function stringifyPayloadObject(value: DataRow) {
+  return stringifyPayloadInput(value)
 }
