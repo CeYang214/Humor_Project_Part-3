@@ -3,31 +3,16 @@
 import { createClient } from '@/lib/supabase/client'
 import { User } from '@supabase/supabase-js'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 interface Caption {
   id: string
-  content: string
+  content: string | null
   created_datetime_utc: string
   is_public: boolean
   profile_id: string
   image_id: string
   imageUrl?: string // We'll add the URL separately
-}
-
-type CaptionRow = Partial<Caption> & Record<string, unknown>
-
-function toSafeCaption(row: CaptionRow): Caption {
-  return {
-    id: typeof row.id === 'string' ? row.id : String(row.id ?? ''),
-    content: typeof row.content === 'string' ? row.content : '',
-    created_datetime_utc:
-      typeof row.created_datetime_utc === 'string' ? row.created_datetime_utc : '',
-    is_public: row.is_public === true,
-    profile_id: typeof row.profile_id === 'string' ? row.profile_id : '',
-    image_id: typeof row.image_id === 'string' ? row.image_id : '',
-    imageUrl: typeof row.imageUrl === 'string' ? row.imageUrl : undefined,
-  }
 }
 
 const SkeletonCard = () => (
@@ -41,124 +26,137 @@ const SkeletonCard = () => (
 )
 
 export default function Home() {
-  const supabase = useMemo(() => createClient(), [])
+  const { supabase, supabaseInitError } = useMemo(() => {
+    try {
+      return { supabase: createClient(), supabaseInitError: '' }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to initialize Supabase client.'
+      console.error('Supabase client init error:', error)
+      return { supabase: null, supabaseInitError: message }
+    }
+  }, [])
   const [captions, setCaptions] = useState<Caption[]>([])
   const [loading, setLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
   const [pageInput, setPageInput] = useState('1')
+  const [searchInput, setSearchInput] = useState('')
+  const [captionQuery, setCaptionQuery] = useState('')
   const [user, setUser] = useState<User | null>(null)
   const [userVotes, setUserVotes] = useState<Record<string, number>>({})
   const [voteStatus, setVoteStatus] = useState<Record<string, 'idle' | 'saving' | 'success' | 'error'>>({})
   const [voteMessage, setVoteMessage] = useState<Record<string, string>>({})
   const captionsPerPage = 36
+  const normalizedCaptionQuery = captionQuery.trim().toLowerCase()
+  const filteredCaptions = useMemo(() => {
+    if (!normalizedCaptionQuery) return captions
 
-  async function fetchCaptions() {
+    return captions.filter((caption) => {
+      const content = typeof caption.content === 'string' ? caption.content : ''
+      return content.toLowerCase().includes(normalizedCaptionQuery)
+    })
+  }, [captions, normalizedCaptionQuery])
+
+  const fetchCaptions = useCallback(async () => {
+    if (!supabase) {
+      setCaptions([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
 
-    try {
-      // Fetch MORE captions than we need (about 2x-3x) to account for missing images
-      const fetchMultiplier = 3
-      const from = (currentPage - 1) * captionsPerPage * fetchMultiplier
-      const to = from + (captionsPerPage * fetchMultiplier) - 1
+    // Fetch MORE captions than we need (about 2x-3x) to account for missing images
+    const fetchMultiplier = 3
+    const from = (currentPage - 1) * captionsPerPage * fetchMultiplier
+    const to = from + (captionsPerPage * fetchMultiplier) - 1
 
-      console.log(`Fetching captions from ${from} to ${to} for page ${currentPage}`)
+    console.log(`Fetching captions from ${from} to ${to} for page ${currentPage}`)
 
-      // Fetch captions with their image_id
-      const { data: captionsData, error: captionsError } = await supabase
-        .from('captions')
-        .select('id, content, created_datetime_utc, is_public, profile_id, image_id')
-        .range(from, to)
+    // Fetch captions with their image_id
+    const { data: captionsData, error: captionsError } = await supabase
+      .from('captions')
+      .select('id, content, created_datetime_utc, is_public, profile_id, image_id')
+      .range(from, to)
 
-      if (captionsError) {
-        console.error('Supabase captions error:', captionsError)
-        return
-      }
-
-      if (!captionsData || captionsData.length === 0) {
-        console.log('No captions data returned')
-        setCaptions([])
-        return
-      }
-
-      console.log(`Fetched ${captionsData.length} captions`)
-
-      // Get unique image IDs
-      const imageIds = [
-        ...new Set(captionsData.map((c) => c.image_id).filter((value): value is string => typeof value === 'string' && value.trim() !== '')),
-      ]
-      console.log(`Found ${imageIds.length} unique image IDs`)
-
-      // Fetch all images at once
-      const { data: imagesData, error: imagesError } = await supabase
-        .from('images')
-        .select('id, url')
-        .in('id', imageIds)
-
-      if (imagesError) {
-        console.error('Supabase images error:', imagesError)
-      }
-
-      console.log(`Fetched ${imagesData?.length || 0} images`)
-
-      // Create a map of image_id to url
-      const imageMap = new Map<string, string>()
-      imagesData?.forEach((img) => {
-        if (typeof img.id !== 'string') return
-        if (typeof img.url !== 'string') return
-        const trimmed = img.url.trim()
-        if (!trimmed) return
-        imageMap.set(img.id, trimmed)
-      })
-
-      // Add image URLs to captions
-      const captionsWithImages = captionsData.map((caption) =>
-        toSafeCaption({
-          ...(caption as CaptionRow),
-          imageUrl: typeof caption.image_id === 'string' ? imageMap.get(caption.image_id) : undefined,
-        })
-      )
-
-      // Filter to only captions with valid image URLs
-      const validCaptions = captionsWithImages.filter(
-        (c) => typeof c.imageUrl === 'string' && c.imageUrl.trim() !== ''
-      )
-
-      console.log(`${validCaptions.length} captions have valid images`)
-
-      // Take exactly 36 (or whatever we have if less)
-      const finalCaptions = validCaptions.slice(0, captionsPerPage)
-      console.log(`Displaying ${finalCaptions.length} captions on this page`)
-
-      setCaptions(finalCaptions)
-
-      // Get total count for pagination (only on first load)
-      if (currentPage === 1) {
-        const { count } = await supabase
-          .from('captions')
-          .select('*', { count: 'exact', head: true })
-
-        if (count) {
-          setTotalPages(Math.ceil(count / (captionsPerPage * fetchMultiplier)))
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch captions:', error)
-      setCaptions([])
-    } finally {
+    if (captionsError) {
+      console.error('Supabase captions error:', captionsError)
       setLoading(false)
+      return
     }
-  }
+
+    if (!captionsData || captionsData.length === 0) {
+      console.log('No captions data returned')
+      setCaptions([])
+      setLoading(false)
+      return
+    }
+
+    console.log(`Fetched ${captionsData.length} captions`)
+
+    // Get unique image IDs
+    const imageIds = [...new Set(captionsData.map(c => c.image_id).filter(Boolean))]
+    console.log(`Found ${imageIds.length} unique image IDs`)
+
+    // Fetch all images at once
+    const { data: imagesData, error: imagesError } = await supabase
+      .from('images')
+      .select('id, url')
+      .in('id', imageIds)
+
+    if (imagesError) {
+      console.error('Supabase images error:', imagesError)
+    }
+
+    console.log(`Fetched ${imagesData?.length || 0} images`)
+
+    // Create a map of image_id to url
+    const imageMap = new Map(imagesData?.map(img => [img.id, img.url]) || [])
+
+    // Add image URLs to captions
+    const captionsWithImages = captionsData.map(caption => ({
+      ...caption,
+      imageUrl: imageMap.get(caption.image_id) || undefined
+    }))
+
+    // Filter to only captions with valid image URLs
+    const validCaptions = captionsWithImages.filter(c => c.imageUrl && c.imageUrl.trim() !== '')
+
+    console.log(`${validCaptions.length} captions have valid images`)
+
+    // Take exactly 36 (or whatever we have if less)
+    const finalCaptions = validCaptions.slice(0, captionsPerPage)
+    console.log(`Displaying ${finalCaptions.length} captions on this page`)
+
+    setCaptions(finalCaptions)
+    setLoading(false)
+
+    // Get total count for pagination (only on first load)
+    if (currentPage === 1) {
+      const { count } = await supabase
+        .from('captions')
+        .select('*', { count: 'exact', head: true })
+
+      if (count) {
+        setTotalPages(Math.ceil(count / (captionsPerPage * fetchMultiplier)))
+      }
+    }
+  }, [currentPage, supabase])
 
   useEffect(() => {
     void fetchCaptions()
-  }, [currentPage])
+  }, [fetchCaptions])
 
   useEffect(() => {
     setPageInput(String(currentPage))
   }, [currentPage])
 
   useEffect(() => {
+    if (!supabase) {
+      setUser(null)
+      return
+    }
+
     let cancelled = false
 
     const syncUser = async () => {
@@ -193,7 +191,7 @@ export default function Home() {
     let cancelled = false
 
     const loadVotes = async () => {
-      if (!user || captions.length === 0) {
+      if (!supabase || !user || captions.length === 0) {
         setUserVotes({})
         return
       }
@@ -252,7 +250,19 @@ export default function Home() {
     goToPage(parsedPage)
   }
 
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setCaptionQuery(searchInput)
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('')
+    setCaptionQuery('')
+  }
+
   const handleSignIn = async () => {
+    if (!supabase) return
+
     const origin = window.location.origin
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -263,10 +273,17 @@ export default function Home() {
   }
 
   const handleSignOut = async () => {
+    if (!supabase) return
     await supabase.auth.signOut()
   }
 
   const handleVote = async (captionId: string, value: number) => {
+    if (!supabase) {
+      setVoteStatus(prev => ({ ...prev, [captionId]: 'error' }))
+      setVoteMessage(prev => ({ ...prev, [captionId]: 'App configuration error. Please contact support.' }))
+      return
+    }
+
     if (!user) {
       setVoteStatus(prev => ({ ...prev, [captionId]: 'error' }))
       setVoteMessage(prev => ({ ...prev, [captionId]: 'Sign in to vote.' }))
@@ -276,37 +293,18 @@ export default function Home() {
     setVoteStatus(prev => ({ ...prev, [captionId]: 'saving' }))
     setVoteMessage(prev => ({ ...prev, [captionId]: '' }))
 
-    const { data: existingVote, error: lookupError } = await supabase
-      .from('caption_votes')
-      .select('caption_id')
-      .eq('profile_id', user.id)
-      .eq('caption_id', captionId)
-      .maybeSingle()
-
-    if (lookupError) {
-      setVoteStatus(prev => ({ ...prev, [captionId]: 'error' }))
-      setVoteMessage(prev => ({ ...prev, [captionId]: lookupError.message }))
-      return
-    }
-
-    const { error } = existingVote
-      ? await supabase
-          .from('caption_votes')
-          .update({
-            vote_value: value,
-            modified_by_user_id: user.id,
-          })
-          .eq('profile_id', user.id)
-          .eq('caption_id', captionId)
-      : await supabase
-          .from('caption_votes')
-          .insert({
-            caption_id: captionId,
-            profile_id: user.id,
-            vote_value: value,
-            created_by_user_id: user.id,
-            modified_by_user_id: user.id,
-          })
+    const { error } = await supabase.from('caption_votes').upsert(
+      {
+        caption_id: captionId,
+        profile_id: user.id,
+        vote_value: value,
+        created_by_user_id: user.id,
+        modified_by_user_id: user.id,
+      },
+      {
+        onConflict: 'profile_id,caption_id',
+      }
+    )
 
     if (error) {
       setVoteStatus(prev => ({ ...prev, [captionId]: 'error' }))
@@ -319,49 +317,126 @@ export default function Home() {
     setVoteMessage(prev => ({ ...prev, [captionId]: 'Vote saved.' }))
   }
 
+  if (supabaseInitError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+        <main className="container mx-auto px-4 py-12">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-rose-500/40 bg-rose-500/10 p-6">
+            <h1 className="text-2xl font-bold text-rose-200">Configuration Error</h1>
+            <p className="mt-3 text-sm text-rose-100">
+              This deployment is missing required Supabase environment variables.
+            </p>
+            <p className="mt-2 break-words text-xs text-rose-100/90">{supabaseInitError}</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       <main className="container mx-auto px-4 py-12">
-        <div className="mb-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <div className="text-sm text-gray-300">
-            {user ? (
-              <span>Signed in as {user.email ?? 'Google user'}</span>
-            ) : (
-              <span>Sign in to access the gated route.</span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/protected"
-              className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
-            >
-              Go to Gated Route
-            </Link>
-            {user ? (
-              <button
-                onClick={handleSignOut}
-                className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
-              >
-                Sign out
-              </button>
-            ) : (
-              <button
-                onClick={handleSignIn}
-                className="rounded-full bg-gradient-to-r from-blue-500 to-sky-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-blue-600 hover:to-sky-600"
-              >
-                Continue with Google
-              </button>
-            )}
-          </div>
-        </div>
-        <header className="text-center mb-12">
-          <h1 className="text-5xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-            Caption Gallery
+        <header className="mx-auto mb-10 max-w-4xl text-center">
+          <p className="text-sm uppercase tracking-[0.25em] text-sky-300/80">Caption + Joke Studio</p>
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-300 to-sky-500 sm:text-5xl">
+            Browse Captions, Vote, and Generate Jokes from Your Images
           </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            A curated collection of creative and witty captions, paired with their inspiring images.
+          <p className="mx-auto mt-4 max-w-3xl text-base text-gray-200 sm:text-lg">
+            Use the public gallery to explore and search image captions. Sign in only if you want to generate your own captions from uploaded images and save your history.
           </p>
         </header>
+
+        <section className="mx-auto mb-10 grid max-w-5xl gap-4 md:grid-cols-2">
+          <article className="rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.18em] text-emerald-300/90">No Sign-In Needed</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Explore the caption gallery</h2>
+            <p className="mt-3 text-sm text-gray-300">
+              Browse and search public captions immediately. You can view the gallery without creating an account.
+            </p>
+            <a
+              href="#caption-gallery"
+              className="mt-4 inline-flex rounded-full border border-white/25 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+            >
+              Jump to Gallery
+            </a>
+          </article>
+
+          <article className="rounded-2xl border border-sky-300/30 bg-sky-500/10 p-6 backdrop-blur">
+            <p className="text-xs uppercase tracking-[0.18em] text-sky-200">Sign-In Feature</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">Generate jokes from your own image</h2>
+            <p className="mt-3 text-sm text-sky-100">
+              Signing in unlocks the joke generator workspace where you can upload an image, generate captions, and revisit saved results.
+            </p>
+            <p className="mt-3 text-xs text-sky-100/90">
+              {user ? `Signed in as ${user.email ?? 'Google user'}.` : 'Continue with Google to unlock image upload and caption generation.'}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {user ? (
+                <>
+                  <Link
+                    href="/protected"
+                    className="rounded-full border border-white/25 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+                  >
+                    Open Joke Generator
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20"
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleSignIn}
+                  className="rounded-full bg-gradient-to-r from-blue-500 to-sky-500 px-4 py-2 text-xs font-semibold text-white shadow-lg transition hover:from-blue-600 hover:to-sky-600"
+                >
+                  Continue with Google
+                </button>
+              )}
+            </div>
+          </article>
+        </section>
+
+        <section id="caption-gallery" className="mb-6 text-center">
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">Community Caption Gallery</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-gray-300">
+            Search public captions and vote on your favorites.
+          </p>
+        </section>
+
+        <form onSubmit={handleSearchSubmit} className="mx-auto mb-8 flex max-w-2xl flex-col gap-3">
+          <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Search Captions</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search by caption text"
+              className="min-w-[220px] flex-1 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-white/40 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="rounded-full border border-white/25 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+            >
+              Search
+            </button>
+            {(searchInput || captionQuery) && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="rounded-full border border-white/25 px-4 py-2 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {normalizedCaptionQuery && (
+            <p className="text-xs text-gray-400">
+              Showing results for <span className="font-medium text-gray-200">{captionQuery.trim()}</span>
+            </p>
+          )}
+        </form>
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -373,10 +448,14 @@ export default function Home() {
           <div className="text-center py-12">
             <p className="text-xl text-gray-400">No captions with images found on this page.</p>
           </div>
+        ) : filteredCaptions.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-xl text-gray-400">No captions match your search on this page.</p>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {captions.map((caption) => (
+              {filteredCaptions.map((caption) => (
                 <CaptionCard
                   key={caption.id}
                   caption={caption}
@@ -459,6 +538,8 @@ interface CaptionCardProps {
 
 const CaptionCard: React.FC<CaptionCardProps> = ({ caption, canVote, userVote, status, message, onVote }) => {
   const [imageError, setImageError] = useState(false)
+  const captionText = typeof caption.content === 'string' ? caption.content : ''
+  const captionPreview = captionText.trim() ? captionText.substring(0, 30) : 'Untitled caption'
 
   const handleImageError = () => {
     setImageError(true)
@@ -469,7 +550,7 @@ const CaptionCard: React.FC<CaptionCardProps> = ({ caption, canVote, userVote, s
       {caption.imageUrl && !imageError ? (
         <img
           src={caption.imageUrl}
-          alt={`Image for caption: ${(caption.content || '').slice(0, 30)}`}
+          alt={`Image for caption: ${captionPreview}`}
           className="w-full h-48 object-cover"
           onError={handleImageError}
         />
@@ -481,7 +562,7 @@ const CaptionCard: React.FC<CaptionCardProps> = ({ caption, canVote, userVote, s
         </div>
       )}
       <div className="p-6">
-        <p className="text-lg font-medium text-gray-100 mb-2">{caption.content || '(No caption text)'}</p>
+        <p className="text-lg font-medium text-gray-100 mb-2">{captionText || 'Untitled caption'}</p>
         <p className="text-sm text-gray-400">
           {new Date(caption.created_datetime_utc).toLocaleDateString()}
         </p>
