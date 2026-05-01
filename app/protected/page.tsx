@@ -40,11 +40,6 @@ interface PersistedImageRow {
   url: string | null
 }
 
-interface ProfileDebugRow {
-  id: string
-  is_superadmin: unknown
-}
-
 interface CaptionHistoryGroup {
   imageId: string
   imageUrl: string
@@ -72,7 +67,11 @@ function formatTimestamp(value: string) {
   if (Number.isNaN(date.getTime())) {
     return value
   }
-  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  try {
+    return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+  } catch {
+    return date.toLocaleString()
+  }
 }
 
 async function parseErrorBody(response: Response) {
@@ -111,7 +110,15 @@ async function callPipelineApi<T>(path: string, token: string, payload: Record<s
 }
 
 export default function ProtectedPage() {
-  const supabase = useMemo(() => createClient(), [])
+  const { supabase, supabaseInitError } = useMemo(() => {
+    try {
+      return { supabase: createClient(), supabaseInitError: '' }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to initialize Supabase client.'
+      console.error('Supabase client init error:', error)
+      return { supabase: null, supabaseInitError: message }
+    }
+  }, [])
   const [user, setUser] = useState<User | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -121,11 +128,14 @@ export default function ProtectedPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [status, setStatus] = useState<UiStatus>('idle')
   const [message, setMessage] = useState('')
-  const [profileDebug, setProfileDebug] = useState<ProfileDebugRow | null>(null)
-  const [profileDebugError, setProfileDebugError] = useState('')
 
   const loadSavedHistory = useCallback(
     async (profileId: string, hydrateLatest: boolean) => {
+      if (!supabase) {
+        setHistoryLoading(false)
+        return
+      }
+
       setHistoryLoading(true)
 
       try {
@@ -235,6 +245,11 @@ export default function ProtectedPage() {
   )
 
   useEffect(() => {
+    if (!supabase) {
+      setUser(null)
+      return
+    }
+
     let cancelled = false
 
     const syncUser = async () => {
@@ -284,46 +299,14 @@ export default function ProtectedPage() {
       setCaptionHistory([])
       setUploadedImageUrl('')
       setGeneratedCaptions([])
-      setProfileDebug(null)
-      setProfileDebugError('')
       return
     }
 
     void loadSavedHistory(user.id, true)
   }, [user, loadSavedHistory])
 
-  useEffect(() => {
-    let cancelled = false
-
-    const loadProfileDebug = async () => {
-      if (!user) return
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, is_superadmin')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (cancelled) return
-
-      if (error) {
-        setProfileDebug(null)
-        setProfileDebugError(error.message)
-        return
-      }
-
-      setProfileDebug((data ?? null) as ProfileDebugRow | null)
-      setProfileDebugError('')
-    }
-
-    void loadProfileDebug()
-
-    return () => {
-      cancelled = true
-    }
-  }, [supabase, user])
-
   const handleSignOut = async () => {
+    if (!supabase) return
     await supabase.auth.signOut()
     window.location.href = '/'
   }
@@ -350,6 +333,12 @@ export default function ProtectedPage() {
     setMessage('')
     setGeneratedCaptions([])
     setUploadedImageUrl('')
+
+    if (!supabase) {
+      setStatus('error')
+      setMessage('App configuration error. Please contact support.')
+      return
+    }
 
     if (!user) {
       setStatus('error')
@@ -454,39 +443,42 @@ export default function ProtectedPage() {
     }
   }
 
+  if (supabaseInitError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white">
+        <main className="container mx-auto px-6 py-16">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-rose-500/40 bg-rose-500/10 p-6">
+            <h1 className="text-2xl font-bold text-rose-200">Configuration Error</h1>
+            <p className="mt-3 text-sm text-rose-100">
+              This deployment is missing required Supabase environment variables.
+            </p>
+            <p className="mt-2 break-words text-xs text-rose-100/90">{supabaseInitError}</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white">
       <main className="container mx-auto px-6 py-16">
         <div className="mx-auto max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-10 shadow-2xl backdrop-blur">
-          <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Gated</p>
-          <h1 className="mt-4 text-4xl font-bold">You made it inside.</h1>
+          <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Joke Generator</p>
+          <h1 className="mt-4 text-4xl font-bold">Generate captions from your own images</h1>
           <p className="mt-3 text-lg text-slate-200">
-            This route is protected by Supabase auth + middleware. Only signed-in users can see it.
+            You unlocked this creator workspace by signing in. Upload an image to generate caption ideas and revisit your saved results below.
           </p>
 
           <div className="mt-8 rounded-2xl border border-white/10 bg-black/40 p-6">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Session</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Account</p>
             <p className="mt-2 text-base text-white">
               {user?.email ? `Signed in as ${user.email}` : 'Loading account details...'}
             </p>
-            {user?.id && <p className="mt-2 break-all text-xs text-slate-300">user.id: {user.id}</p>}
-            {profileDebug && (
-              <p className="mt-2 break-all text-xs text-slate-300">
-                profiles.is_superadmin: {String(profileDebug.is_superadmin)}
-              </p>
-            )}
-            {user && !profileDebug && !profileDebugError && (
-              <p className="mt-2 text-xs text-amber-200">No `profiles` row found for this user id.</p>
-            )}
-            {profileDebugError && <p className="mt-2 text-xs text-rose-300">profiles query error: {profileDebugError}</p>}
           </div>
 
           {user ? (
             <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
               <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Caption Pipeline Upload</p>
-              <p className="mt-2 text-sm text-slate-300">
-                Upload an image and run the 4-step pipeline with your JWT access token.
-              </p>
 
               <form onSubmit={handleSubmit} className="mt-4 grid gap-4">
                 <label className="grid gap-2 text-sm text-slate-200">
@@ -535,7 +527,7 @@ export default function ProtectedPage() {
                   disabled={status === 'saving'}
                   className="mt-2 w-fit rounded-full bg-gradient-to-r from-blue-500 to-sky-500 px-6 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-blue-600 hover:to-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {status === 'saving' ? 'Running Pipeline...' : 'Upload & Generate Captions'}
+                  {status === 'saving' ? 'Running Pipeline...' : 'Upload & Generate Jokes'}
                 </button>
               </form>
 
@@ -586,21 +578,21 @@ export default function ProtectedPage() {
                 ) : (
                   <div className="mt-3 grid max-h-72 gap-3 overflow-y-auto pr-1">
                     {captionHistory.map((item) => (
-                      <div key={item.imageId} className="rounded-xl border border-white/10 bg-black/40 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-white">
-                              {item.captions.length} caption(s)
-                            </p>
-                            <p className="mt-1 text-xs text-slate-300">{formatTimestamp(item.latestCreatedAt)}</p>
-                            <p title={item.imageUrl} className="mt-1 truncate text-xs text-slate-400">{item.imageUrl}</p>
-                          </div>
+                      <div key={item.imageId} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white">{item.captions.length} caption(s)</p>
+                          <p className="mt-1 text-xs text-slate-300">{formatTimestamp(item.latestCreatedAt)}</p>
+                          <p title={item.imageUrl} className="mt-2 break-all text-xs text-slate-400">
+                            {item.imageUrl}
+                          </p>
+                        </div>
+                        <div className="mt-3">
                           <button
                             type="button"
                             onClick={() => handleLoadHistoryItem(item)}
-                            className="shrink-0 rounded-full border border-white/25 px-3 py-1 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
+                            className="w-full rounded-full border border-white/25 px-3 py-2 text-xs font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
                           >
-                            Load
+                            Load this result
                           </button>
                         </div>
                       </div>
@@ -621,12 +613,6 @@ export default function ProtectedPage() {
               className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/10"
             >
               Back to Home
-            </Link>
-            <Link
-              href="/admin"
-              className="rounded-full border border-cyan-300/40 px-5 py-2 text-sm font-semibold text-cyan-100 transition hover:border-cyan-200/70 hover:bg-cyan-500/20"
-            >
-              Open Admin
             </Link>
             <button
               onClick={handleSignOut}
